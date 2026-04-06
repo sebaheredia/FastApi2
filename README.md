@@ -11,10 +11,11 @@ Proyecto de ejemplo de una API REST construida con **FastAPI** (Python), con int
 3. [La aplicación Python](#3-la-aplicación-python)
 4. [Tests automáticos](#4-tests-automáticos)
 5. [Dependencias](#5-dependencias)
-6. [CI/CD con GitHub Actions](#6-cicd-con-github-actions)
-7. [Despliegue en Render](#7-despliegue-en-render)
-8. [Flujo completo de trabajo](#8-flujo-completo-de-trabajo)
-9. [Cómo correr el proyecto localmente](#9-cómo-correr-el-proyecto-localmente)
+6. [Docker](#6-docker)
+7. [CI/CD con GitHub Actions](#7-cicd-con-github-actions)
+8. [Despliegue en Render](#8-despliegue-en-render)
+9. [Flujo completo de trabajo](#9-flujo-completo-de-trabajo)
+10. [Cómo correr el proyecto localmente](#10-cómo-correr-el-proyecto-localmente)
 
 ---
 
@@ -45,6 +46,7 @@ FastApi2/
 ├── test_main.py                     # Tests automáticos
 ├── requirements.txt                 # Dependencias Python
 ├── runtime.txt                      # Versión de Python para Render
+├── Dockerfile                       # Instrucciones para construir la imagen Docker
 └── .github/
     └── workflows/
         └── ci.yml                   # Pipeline de CI/CD (GitHub Actions)
@@ -162,7 +164,85 @@ Le indica a Render qué versión de Python usar al crear el entorno del servidor
 
 ---
 
-## 6. CI/CD con GitHub Actions
+## 6. Docker
+
+### ¿Qué es Docker?
+
+**Docker** es una herramienta que empaqueta una aplicación junto con todo lo que necesita para funcionar (Python, dependencias, código) dentro de un **contenedor**. Un contenedor es un entorno aislado y reproducible: corre exactamente igual en tu máquina, en el servidor de CI y en producción, sin importar el sistema operativo del host.
+
+### `Dockerfile`
+
+```dockerfile
+# Imagen base oficial de Python liviana
+FROM python:3.13-slim
+
+# Directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+# Copiar e instalar dependencias primero (aprovecha cache de Docker)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar el resto del código
+COPY . .
+
+# Puerto que expone el contenedor
+EXPOSE 8000
+
+# Comando para levantar la API
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+El `Dockerfile` es una receta con instrucciones paso a paso para construir la imagen:
+
+1. **`FROM python:3.13-slim`** — parte de una imagen oficial de Python liviana (sin herramientas innecesarias).
+2. **`WORKDIR /app`** — define `/app` como el directorio de trabajo dentro del contenedor, todos los comandos siguientes se ejecutan ahí.
+3. **`COPY requirements.txt .`** y **`RUN pip install`** — copia e instala las dependencias. Se hace antes de copiar el código para aprovechar el **cache de capas de Docker**: si el código cambia pero `requirements.txt` no, Docker reutiliza esta capa y no reinstala todo desde cero.
+4. **`COPY . .`** — copia todo el código del proyecto al contenedor.
+5. **`EXPOSE 8000`** — documenta que el contenedor escucha en el puerto 8000.
+6. **`CMD`** — el comando que se ejecuta cuando el contenedor arranca: levanta uvicorn con la app FastAPI.
+
+### ¿Dónde se guarda la imagen Docker?
+
+La imagen construida se publica en **GHCR (GitHub Container Registry)** — el registro de imágenes Docker de GitHub. Es gratuito para repositorios públicos y está integrado con GitHub Actions.
+
+La URL de la imagen sigue este formato:
+```
+ghcr.io/<usuario>/<repositorio>:<tag>
+```
+
+Por ejemplo:
+```
+ghcr.io/sebaheredia/fastapi2:main      ← imagen de producción
+ghcr.io/sebaheredia/fastapi2:develop   ← imagen de staging
+```
+
+El tag corresponde al nombre de la rama desde la que se construyó. Esto permite tener versiones separadas de la imagen para cada entorno.
+
+### ¿Por qué publicar la imagen en GHCR?
+
+Publicar la imagen tiene varias ventajas:
+
+- **Trazabilidad**: cada imagen está asociada a un commit específico, podés saber exactamente qué código está corriendo en cada entorno.
+- **Rollback**: si algo falla en producción, podés volver a la imagen anterior en segundos.
+- **Consistencia**: Render descarga y corre exactamente la misma imagen que fue testeada en CI.
+- **Cache**: los builds siguientes son más rápidos porque Docker reutiliza las capas que no cambiaron.
+
+### Correr con Docker localmente
+
+```bash
+# Construir la imagen
+docker build -t fastapi2 .
+
+# Correr el contenedor
+docker run -p 8000:8000 fastapi2
+
+# La API queda disponible en http://localhost:8000
+```
+
+---
+
+## 7. CI/CD con GitHub Actions
 
 ### ¿Qué es CI/CD?
 
@@ -173,17 +253,12 @@ El objetivo es detectar errores rápido y garantizar que lo que llega a producci
 
 ### `ci.yml`
 
-```yaml
-name: CI/CD
+El pipeline se activa en cada `git push` a las ramas `main` o `develop` y tiene 4 jobs que se ejecutan en secuencia:
 
-on:
-  push:
-    branches:
-      - main
-      - develop
 ```
-
-El pipeline se activa en cada `git push` a las ramas `main` o `develop`.
+[Job 1] test ──► [Job 2] docker ──► [Job 3] deploy-staging  (solo en develop)
+                                ──► [Job 4] deploy-production (solo en main)
+```
 
 ---
 
@@ -202,43 +277,75 @@ test:
     - run: pytest test_main.py -v
 ```
 
-Este job:
-1. Clona el repositorio en una máquina virtual Ubuntu limpia.
-2. Instala Python 3.13.
-3. Instala las dependencias.
-4. Corre todos los tests con pytest.
-
-Si algún test falla, los jobs siguientes no se ejecutan.
+Este job corre en una VM Ubuntu limpia y ejecuta los 4 tests de pytest. Si alguno falla, los jobs siguientes no se ejecutan y el pipeline se detiene.
 
 ---
 
-### Job 2: Deploy a Staging
+### Job 2: Build y push de la imagen Docker
+
+```yaml
+docker:
+  name: Build y push Docker
+  runs-on: ubuntu-latest
+  needs: test
+  permissions:
+    contents: read
+    packages: write
+```
+
+Solo corre si el Job 1 (tests) fue exitoso. Realiza tres pasos:
+
+**Login a GHCR**: se autentica en GitHub Container Registry usando el token automático de GitHub Actions.
+```yaml
+- uses: docker/login-action@v3
+  with:
+    registry: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Extraer metadata**: genera automáticamente el tag de la imagen basándose en el nombre de la rama (`main` o `develop`).
+```yaml
+- uses: docker/metadata-action@v5
+  with:
+    images: ghcr.io/${{ github.repository }}
+    tags: |
+      type=ref,event=branch
+```
+
+**Build y push**: construye la imagen Docker usando el `Dockerfile` del repo y la publica en GHCR con el tag generado.
+```yaml
+- uses: docker/build-push-action@v5
+  with:
+    context: .
+    push: true
+    tags: ${{ steps.meta.outputs.tags }}
+```
+
+El permiso `packages: write` es necesario para que el token de GitHub Actions pueda escribir en GHCR.
+
+---
+
+### Job 3: Deploy a Staging
 
 ```yaml
 deploy-staging:
-  needs: test
+  needs: docker
   if: github.ref == 'refs/heads/develop'
-  steps:
-    - run: |
-        curl -X POST "${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}" ...
 ```
 
 - Solo corre si el push fue a la rama **`develop`**.
-- `needs: test` garantiza que los tests pasaron antes de deployar.
-- Hace una petición POST a la URL del deploy hook de Render (guardada como secret en GitHub).
-- Si Render responde 200/201/202, el job es exitoso.
+- `needs: docker` garantiza que la imagen fue construida y publicada antes de deployar.
+- Hace un POST al deploy hook de Render (staging) para triggerear el redespliegue.
 
 ---
 
-### Job 3: Deploy a Producción
+### Job 4: Deploy a Producción
 
 ```yaml
 deploy-production:
-  needs: test
+  needs: docker
   if: github.ref == 'refs/heads/main'
-  steps:
-    - run: |
-        curl -X POST "${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK }}" ...
 ```
 
 - Solo corre si el push fue a la rama **`main`**.
@@ -248,7 +355,7 @@ deploy-production:
 
 ### Secrets de GitHub
 
-Los deploy hooks son URLs sensibles (quien las tenga puede triggerear un deploy). Por eso se guardan como **secrets** en GitHub (Settings → Secrets and variables → Actions) y se referencian en el YAML como `${{ secrets.NOMBRE }}`. GitHub los inyecta en tiempo de ejecución sin exponerlos en los logs.
+Los deploy hooks son URLs sensibles. Por eso se guardan como **secrets** en GitHub (Settings → Secrets and variables → Actions) y se referencian en el YAML como `${{ secrets.NOMBRE }}`. GitHub los inyecta en tiempo de ejecución sin exponerlos en los logs.
 
 | Secret | Usado por |
 |---|---|
@@ -259,23 +366,24 @@ Los deploy hooks son URLs sensibles (quien las tenga puede triggerear un deploy)
 
 ### Resumen del flujo de ramas
 
-| Push a | Tests | Staging | Producción |
-|---|---|---|---|
-| `develop` | ✅ Corre | ✅ Se deploya | ⊘ Se saltea |
-| `main` | ✅ Corre | ⊘ Se saltea | ✅ Se deploya |
+| Push a | Tests | Build Docker | Staging | Producción |
+|---|---|---|---|---|
+| `develop` | ✅ Corre | ✅ Tag `develop` en GHCR | ✅ Se deploya | ⊘ Se saltea |
+| `main` | ✅ Corre | ✅ Tag `main` en GHCR | ⊘ Se saltea | ✅ Se deploya |
 
 ---
 
-## 7. Despliegue en Render
+## 8. Despliegue en Render
 
-**Render** es una plataforma de hosting en la nube (PaaS — Platform as a Service). Se encarga de toda la infraestructura: servidores, redes, SSL, escalado. Vos solo subís el código.
+**Render** es una plataforma de hosting en la nube (PaaS — Platform as a Service). Se encarga de toda la infraestructura: servidores, redes, SSL, escalado.
 
 ### ¿Qué hace Render cuando recibe el deploy hook?
 
-1. Clona el repositorio desde GitHub (la rama configurada).
-2. Instala las dependencias: `pip install -r requirements.txt`.
-3. Levanta el servidor con el comando de inicio: `uvicorn main:app --host 0.0.0.0 --port $PORT`.
-4. Expone el servicio en una URL pública con HTTPS.
+1. Recibe el POST del deploy hook y responde `202 Accepted`.
+2. Clona el repositorio desde GitHub (la rama configurada).
+3. Construye la imagen Docker usando el `Dockerfile` del repo.
+4. Reemplaza el contenedor en ejecución por el nuevo.
+5. Expone el servicio en una URL pública con HTTPS automático.
 
 ### Los dos servicios
 
@@ -284,9 +392,20 @@ Los deploy hooks son URLs sensibles (quien las tenga puede triggerear un deploy)
 | `fastapi2-staging` | `develop` | `https://fastapi2-staging.onrender.com` |
 | `fastapi2-production` | `main` | `https://fastapi2-production.onrender.com` |
 
+### Configuración del servicio en Render
+
+Al crear cada Web Service en Render se configura:
+
+| Campo | Valor |
+|---|---|
+| **Runtime** | Docker |
+| **Branch** | `main` o `develop` según el entorno |
+| **Region** | Oregon (US West) |
+| **Instance Type** | Free |
+
 ### Deploy Hook
 
-Es una URL única por servicio que al recibir un POST triggearea un nuevo deploy. Render responde con `202 Accepted` si la solicitud fue recibida correctamente y procesa el deploy en segundo plano.
+Es una URL única por servicio que al recibir un POST triggearea un nuevo deploy. Se obtiene en Render → tu servicio → Settings → Deploy Hook.
 
 ### Plan gratuito
 
@@ -294,7 +413,7 @@ El plan free de Render tiene una limitación: el servicio se **apaga automática
 
 ---
 
-## 8. Flujo completo de trabajo
+## 9. Flujo completo de trabajo
 
 ```
 Desarrollador hace cambios en el código
@@ -313,28 +432,44 @@ Desarrollador hace cambios en el código
   NO             SÍ
   │               │
   ▼               ▼
-Falla.     [Job 2] POST al deploy hook de Staging
-No deploya.        │
-                   ▼
-            Render deploya en Staging
+Falla.     [Job 2] Construye imagen Docker
+No deploya.        │ La publica en GHCR con tag "develop"
                    │
                    ▼
-         Se verifica en Staging
+           [Job 3] POST al deploy hook de Staging
+                   │
+                   ▼
+            Render descarga el código,
+            construye el contenedor
+            y despliega en Staging
+                   │
+                   ▼
+         Se verifica en Staging:
+         https://fastapi2-staging.onrender.com
                    │
                    ▼
          git merge develop → main
          git push origin main
                    │
                    ▼
-         [Job 3] POST al deploy hook de Producción
-                   │
-                   ▼
-          Render deploya en Producción
+  GitHub Actions se activa nuevamente
+          │
+          ▼
+  [Job 1] Tests  →  [Job 2] Build imagen tag "main"
+          │
+          ▼
+  [Job 4] POST al deploy hook de Producción
+          │
+          ▼
+   Render despliega en Producción:
+   https://fastapi2-production.onrender.com
 ```
 
 ---
 
-## 9. Cómo correr el proyecto localmente
+## 10. Cómo correr el proyecto localmente
+
+### Sin Docker
 
 ```bash
 # Clonar el repositorio
@@ -355,7 +490,19 @@ uvicorn main:app --reload
 pytest test_main.py -v
 ```
 
-El flag `--reload` hace que uvicorn reinicie automáticamente cada vez que guardás un cambio en el código, útil durante el desarrollo.
+### Con Docker
+
+```bash
+# Construir la imagen
+docker build -t fastapi2 .
+
+# Correr el contenedor
+docker run -p 8000:8000 fastapi2
+
+# La API queda disponible en http://localhost:8000
+```
+
+El flag `--reload` (solo sin Docker) hace que uvicorn reinicie automáticamente cada vez que guardás un cambio en el código, útil durante el desarrollo.
 
 ---
 
