@@ -16,3 +16,7 @@ def hello(name: str):
 @app.post("/sum")
 def sum_numbers(a: float, b: float):
     return {"result": a + b}
+
+@app.get("/")
+def root():
+    return {"message": "Bienvenido a FastAPI"}
