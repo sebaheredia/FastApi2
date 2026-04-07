@@ -1,50 +1,66 @@
-import pytest
-import os
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from database import Base, get_db
+def test_ping(client):
+    response = client.get("/ping")
+    assert response.status_code == 200
+    assert response.json() == {"ping": "pong"}
 
-# Archivo temporal para tests — se borra al terminar
-TEST_DB_FILE = "./test_database.db"
-TEST_DATABASE_URL = f"sqlite:///{TEST_DB_FILE}"
 
-engine_test = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+def test_hello(client):
+    response = client.get("/hello/Seba")
+    assert response.status_code == 200
+    assert response.json() == {"message": "Hola, Seba!"}
 
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine_test
-)
 
-import models
-Base.metadata.create_all(bind=engine_test)
+def test_sum(client):
+    response = client.post("/sum?a=2&b=3")
+    assert response.status_code == 200
+    assert response.json() == {"result": 5.0}
 
-from main import app
 
-app.dependency_overrides[get_db] = lambda: (
-    db := TestingSessionLocal(),
-    db
-)[-1]
+def test_sum_negativos(client):
+    response = client.post("/sum?a=-1&b=1")
+    assert response.status_code == 200
+    assert response.json() == {"result": 0.0}
 
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-app.dependency_overrides[get_db] = override_get_db
+def test_crear_usuario(client):
+    response = client.post("/users", json={"nombre": "Seba", "email": "seba@test.com"})
+    assert response.status_code == 201
+    data = response.json()
+    assert data["nombre"] == "Seba"
+    assert data["email"] == "seba@test.com"
+    assert "id" in data
 
-@pytest.fixture
-def client():
-    with TestClient(app) as c:
-        yield c
 
-def pytest_sessionfinish(session, exitstatus):
-    """Borra el archivo de DB de tests al terminar."""
-    if os.path.exists(TEST_DB_FILE):
-        os.remove(TEST_DB_FILE)
+def test_email_duplicado(client):
+    client.post("/users", json={"nombre": "Seba", "email": "duplicado@test.com"})
+    response = client.post("/users", json={"nombre": "Otro", "email": "duplicado@test.com"})
+    assert response.status_code == 400
+    assert "email" in response.json()["detail"].lower()
+
+
+def test_listar_usuarios(client):
+    response = client.get("/users")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+def test_obtener_usuario(client):
+    created = client.post("/users", json={"nombre": "Ana", "email": "ana@test.com"})
+    user_id = created.json()["id"]
+    response = client.get(f"/users/{user_id}")
+    assert response.status_code == 200
+    assert response.json()["email"] == "ana@test.com"
+
+
+def test_usuario_no_encontrado(client):
+    response = client.get("/users/9999")
+    assert response.status_code == 404
+
+
+def test_borrar_usuario(client):
+    created = client.post("/users", json={"nombre": "Carlos", "email": "carlos@test.com"})
+    user_id = created.json()["id"]
+    response = client.delete(f"/users/{user_id}")
+    assert response.status_code == 200
+    response = client.get(f"/users/{user_id}")
+    assert response.status_code == 404
