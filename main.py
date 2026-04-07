@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -6,14 +7,22 @@ import models
 import schemas
 from database import engine, get_db
 
-# Crea las tablas en la base de datos si no existen
-# SQLAlchemy lee los modelos definidos en models.py y genera el SQL necesario
-# Si la tabla ya existe, no la toca
-models.Base.metadata.create_all(bind=engine)
 
-# FastAPI() crea la aplicación web
-# Esta variable "app" es el punto de entrada — uvicorn la busca por nombre
-app = FastAPI()
+# lifespan reemplaza al create_all suelto
+# Solo se ejecuta cuando uvicorn levanta el servidor real
+# Durante los tests NO se ejecuta — pytest lo evita
+# Así conftest.py puede crear las tablas en la DB correcta primero
+@asynccontextmanager
+async def lifespan(app):
+    # Todo lo que está antes del yield corre al ARRANCAR el servidor
+    models.Base.metadata.create_all(bind=engine)
+    yield
+    # Todo lo que está después del yield corre al APAGAR el servidor
+    # (vacío por ahora)
+
+
+# Se le pasa lifespan a FastAPI para que lo use al arrancar
+app = FastAPI(lifespan=lifespan)
 
 
 # ─── Endpoints originales ─────────────────────────────────────────────────────
