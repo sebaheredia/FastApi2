@@ -5,7 +5,7 @@ app = FastAPI()
 
 @app.get("/ping")
 def ping():
-    return {"ping": "pong"}
+    return {"ping": "Te quiero Joaquin"}
 
 
 @app.get("/hello/{name}")
