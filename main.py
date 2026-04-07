@@ -58,3 +58,8 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return user
+
+@app.get("/db-info")
+def db_info():
+    from database import DATABASE_URL
+    return {"database_url": DATABASE_URL}
