@@ -1,6 +1,6 @@
-# FastApi2 — API REST con CI/CD y Base de Datos
+# FastApi2 — API REST con CI/CD, Docker y Base de Datos
 
-Proyecto de ejemplo de una API REST construida con **FastAPI** (Python), con integración y despliegue continuo (CI/CD) usando **GitHub Actions**, **GHCR** y **Render**.
+Proyecto de ejemplo de una API REST construida con **FastAPI** (Python), con integración y despliegue continuo (CI/CD) usando **GitHub Actions**, **GHCR** y **Render**, con base de datos **PostgreSQL** persistente.
 
 ---
 
@@ -9,19 +9,20 @@ Proyecto de ejemplo de una API REST construida con **FastAPI** (Python), con int
 1. [¿Qué es esta API?](#1-qué-es-esta-api)
 2. [Qué es el backend y cómo se interactúa con él](#2-qué-es-el-backend-y-cómo-se-interactúa-con-él)
 3. [Estructura del repositorio](#3-estructura-del-repositorio)
-4. [La base de datos](#4-la-base-de-datos)
-5. [Los tres archivos clave de la DB](#5-los-tres-archivos-clave-de-la-db)
-6. [Cómo interactúan database, models y schemas](#6-cómo-interactúan-database-models-y-schemas)
-7. [La aplicación Python — main.py](#7-la-aplicación-python--mainpy)
-8. [Tests automáticos](#8-tests-automáticos)
-9. [Dependencias](#9-dependencias)
-10. [Docker y el problema de persistencia](#10-docker-y-el-problema-de-persistencia)
-11. [CI/CD con GitHub Actions](#11-cicd-con-github-actions)
-12. [GHCR — Dónde se guardan las imágenes](#12-ghcr--dónde-se-guardan-las-imágenes)
-13. [Despliegue en Render](#13-despliegue-en-render)
-14. [Flujo completo de trabajo](#14-flujo-completo-de-trabajo)
-15. [Cómo probar el servicio desplegado](#15-cómo-probar-el-servicio-desplegado)
-16. [Cómo correr el proyecto localmente](#16-cómo-correr-el-proyecto-localmente)
+4. [Los archivos de la base de datos](#4-los-archivos-de-la-base-de-datos)
+5. [Cómo interactúan database, models y schemas](#5-cómo-interactúan-database-models-y-schemas)
+6. [La aplicación — main.py](#6-la-aplicación--mainpy)
+7. [Tests automáticos](#7-tests-automáticos)
+8. [Docker](#8-docker)
+9. [CI/CD con GitHub Actions](#9-cicd-con-github-actions)
+10. [GHCR — Dónde se guardan las imágenes Docker](#10-ghcr--dónde-se-guardan-las-imágenes-docker)
+11. [Despliegue en Render](#11-despliegue-en-render)
+12. [Base de datos PostgreSQL](#12-base-de-datos-postgresql)
+13. [Cómo se conecta Docker con PostgreSQL](#13-cómo-se-conecta-docker-con-postgresql)
+14. [SQLite vs PostgreSQL](#14-sqlite-vs-postgresql)
+15. [Flujo completo de trabajo](#15-flujo-completo-de-trabajo)
+16. [Cómo probar el servicio desplegado](#16-cómo-probar-el-servicio-desplegado)
+17. [Cómo correr el proyecto localmente](#17-cómo-correr-el-proyecto-localmente)
 
 ---
 
@@ -36,10 +37,18 @@ Esta API expone los siguientes endpoints:
 | GET | `/ping` | Verificación de que el servidor está activo |
 | GET | `/hello/{name}` | Saludo personalizado |
 | POST | `/sum` | Suma dos números |
+| GET | `/db-info` | Muestra a qué base de datos está conectada la app |
 | POST | `/users` | Crear un usuario |
 | GET | `/users` | Listar todos los usuarios |
 | GET | `/users/{id}` | Obtener un usuario por ID |
 | DELETE | `/users/{id}` | Borrar un usuario |
+
+Los servicios desplegados son públicos — accesibles desde cualquier máquina en el mundo:
+
+| Entorno | URL |
+|---|---|
+| **Staging** | https://fastapi2-staging-docker.onrender.com |
+| **Producción** | https://fastapi2-production.onrender.com |
 
 ---
 
@@ -47,7 +56,7 @@ Esta API expone los siguientes endpoints:
 
 ### FastAPI no tiene pantallas
 
-Esta es la confusión más común. FastAPI es solo el backend — no muestra formularios ni le pregunta nada al usuario. No hay campo de texto "escribí tu nombre acá".
+FastAPI es solo el backend — no muestra formularios ni le pregunta nada al usuario. El que muestra la pantalla y recoge los datos es **otro programa** (un frontend, una app móvil, Postman).
 
 ```
 Lo que se imagina:              Lo que es realmente:
@@ -57,14 +66,12 @@ Lo que se imagina:              Lo que es realmente:
   Email:  ____          ──JSON──►      [FastAPI]
   [Registrar]                               │
                                             ▼
-                                       [Base de datos]
+                                       [PostgreSQL]
 ```
-
-El que muestra la pantalla y recoge los datos del usuario es **otro programa** (un frontend en React, una app móvil, Postman para pruebas). Ese programa arma el JSON y se lo manda a FastAPI.
 
 ### ¿Qué es JSON?
 
-JSON es el formato en que viajan los datos. Es texto plano con estructura de clave-valor:
+JSON es el formato en que viajan los datos entre el cliente y la API:
 
 ```json
 {
@@ -73,32 +80,24 @@ JSON es el formato en que viajan los datos. Es texto plano con estructura de cla
 }
 ```
 
-Cuando alguien quiere crear un usuario, manda ese JSON en el cuerpo del request HTTP POST a `/users`. FastAPI lo recibe, lo valida y lo guarda en la base de datos.
+### Cómo interactuar sin un frontend
 
-### Cómo interactuar con la API sin un frontend
-
-FastAPI genera automáticamente una interfaz web en `/docs` (Swagger UI) que permite probar todos los endpoints desde el navegador:
+FastAPI genera automáticamente una interfaz en `/docs` (Swagger UI):
 
 ```
-https://fastapi2-production.onrender.com/docs
+https://fastapi2-staging-docker.onrender.com/docs
 ```
 
-También se puede usar curl desde la terminal:
+También desde la terminal con curl:
 
 ```bash
 # Crear un usuario
-curl -X POST "https://fastapi2-production.onrender.com/users" \
+curl -X POST "https://fastapi2-staging-docker.onrender.com/users" \
      -H "Content-Type: application/json" \
      -d '{"nombre": "Seba", "email": "seba@gmail.com"}'
 
 # Listar usuarios
-curl https://fastapi2-production.onrender.com/users
-
-# Obtener usuario con ID 1
-curl https://fastapi2-production.onrender.com/users/1
-
-# Borrar usuario con ID 1
-curl -X DELETE https://fastapi2-production.onrender.com/users/1
+curl https://fastapi2-staging-docker.onrender.com/users
 ```
 
 ---
@@ -111,6 +110,7 @@ FastApi2/
 ├── database.py      # Conexión a la base de datos
 ├── models.py        # Definición de las tablas (SQLAlchemy)
 ├── schemas.py       # Validación de datos entrada/salida (Pydantic)
+├── conftest.py      # Configuración de tests (pytest fixtures)
 ├── test_main.py     # Tests automáticos
 ├── requirements.txt # Dependencias Python
 ├── Dockerfile       # Instrucciones para construir la imagen Docker
@@ -121,100 +121,50 @@ FastApi2/
 
 ---
 
-## 4. La base de datos
-
-### ¿Qué base de datos se usa?
-
-**SQLite** para desarrollo local y tests. Es una base de datos que vive en un único archivo (`database.db`) en el disco. No requiere instalar ningún servidor — Python la maneja directamente.
-
-**PostgreSQL** para producción en Render. Es una base de datos que corre en un servidor separado, fuera del contenedor Docker.
-
-### ¿Dónde está físicamente la tabla de usuarios?
-
-Esta es una pregunta crítica. La respuesta depende del entorno:
-
-| Entorno | Dónde vive la DB | Qué pasa si se reinicia |
-|---|---|---|
-| **Local (sin Docker)** | Archivo `database.db` en tu carpeta | Persiste — los datos no se pierden |
-| **Local (con Docker)** | Archivo `/app/database.db` dentro del contenedor | Se pierde al reiniciar el contenedor |
-| **Tests** | Memoria RAM (`sqlite:///:memory:`) | Se borra al terminar los tests (intencional) |
-| **Producción (Render)** | PostgreSQL en servidor externo | Persiste — independiente del contenedor |
-
-### El problema con SQLite dentro de Docker
-
-Cuando Render redesplega la aplicación (por ejemplo, después de un push a main), destruye el contenedor viejo y crea uno nuevo completamente limpio. El archivo `database.db` que estaba adentro del contenedor viejo se pierde para siempre — todos los usuarios registrados desaparecen.
-
-```
-Push a main
-    │
-    ▼
-Render destruye el contenedor viejo
-    │  ← database.db desaparece con el contenedor
-    ▼
-Render crea contenedor nuevo
-    │  ← database.db está vacía
-    ▼
-Todos los usuarios perdidos ❌
-```
-
-### La solución: base de datos externa
-
-La base de datos tiene que vivir fuera del contenedor, en un servidor separado. Así el contenedor puede ser destruido y recreado sin tocar los datos:
-
-```
-Contenedor Docker          Servidor PostgreSQL (Render)
-─────────────────          ──────────────────────────────
-main.py                    tabla users
-database.py   ────────►    id | nombre | email | created_at
-models.py                  1  | Seba   | s@g.com | 2026-04-07
-schemas.py                 2  | Ana    | a@g.com | 2026-04-07
-
-Redespliegue:
-Contenedor nuevo ────────► mismos datos ✅
-```
-
----
-
-## 5. Los tres archivos clave de la DB
+## 4. Los archivos de la base de datos
 
 ### `database.py` — La conexión
 
-Define cómo conectarse a la base de datos y crea la fábrica de sesiones.
-
 ```python
-DATABASE_URL = "sqlite:///./database.db"
-# Formato: tipo://ruta
-# sqlite:///  → tipo de DB (SQLite)
-# ./database.db → archivo en la carpeta actual
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-engine = create_engine(DATABASE_URL, ...)
-# El engine es el "motor" — traduce Python a SQL
-# Sabe cómo hablar con SQLite (o PostgreSQL, MySQL, etc)
+# Lee la URL de conexión desde las variables de entorno
+# Si no existe (desarrollo local) usa SQLite como fallback
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./database.db")
 
-SessionLocal = sessionmaker(...)
-# Fábrica de sesiones
-# Una sesión es una "conversación" con la DB
-# Cada request HTTP abre su propia sesión
+# SQLite necesita check_same_thread=False
+# PostgreSQL no necesita ningún argumento especial
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
 
-Base = declarative_base()
+# El engine es el "motor" que traduce Python a SQL
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
+
+# Fábrica de sesiones — cada request abre su propia sesión
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 # Clase madre de todos los modelos
-# Los modelos que hereden de Base se convierten en tablas
+Base = declarative_base()
 
 def get_db():
-    db = SessionLocal()   # abrir sesión
+    """Abre una sesión por request y la cierra al terminar."""
+    db = SessionLocal()
     try:
-        yield db          # darle la sesión al endpoint
+        yield db
     finally:
-        db.close()        # cerrar sesión siempre (aunque haya error)
+        db.close()
 ```
 
 ### `models.py` — Las tablas
 
-Define la estructura de las tablas en la base de datos. Cada clase es una tabla, cada atributo Column es una columna.
+Define la estructura de las tablas. Cada clase es una tabla, cada atributo Column es una columna:
 
 ```python
 class User(Base):
-    __tablename__ = "users"   # nombre real de la tabla en SQL
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)  # autoincremental: 1, 2, 3...
     nombre = Column(String, nullable=False)  # texto, obligatorio
@@ -225,37 +175,35 @@ class User(Base):
 SQLAlchemy genera automáticamente este SQL:
 ```sql
 CREATE TABLE users (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre     TEXT    NOT NULL,
-    email      TEXT    NOT NULL UNIQUE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    id         SERIAL PRIMARY KEY,
+    nombre     TEXT NOT NULL,
+    email      TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 ### `schemas.py` — La validación
 
-Define qué datos entran y salen de la API. Son clases de Pydantic — no tocan la base de datos, solo validan y dan forma a los datos JSON.
+Define qué datos entran y salen de la API. Son clases de Pydantic — validan el JSON sin tocar la base de datos:
 
 ```python
 class UserCreate(BaseModel):
-    # Lo que debe mandar el cliente para crear un usuario
     nombre: str   # obligatorio
     email: str    # obligatorio
-    # Si falta alguno → FastAPI devuelve 422 automáticamente
 
 class UserResponse(BaseModel):
-    # Lo que devuelve la API al mostrar un usuario
     id: int
     nombre: str
     email: str
     created_at: Optional[datetime] = None
-    # Si el modelo tuviera un campo "password", no aparecería acá
-    # UserResponse actúa como filtro de seguridad
+
+    class Config:
+        from_attributes = True  # permite convertir objetos SQLAlchemy a JSON
 ```
 
 ---
 
-## 6. Cómo interactúan database, models y schemas
+## 5. Cómo interactúan database, models y schemas
 
 El flujo completo de un `POST /users`:
 
@@ -264,169 +212,147 @@ El flujo completo de un `POST /users`:
    {"nombre": "Seba", "email": "seba@gmail.com"}
             │
             ▼
-2. Pydantic valida con UserCreate:
-   ¿tiene nombre? ✅   ¿tiene email? ✅
-   Si falta algo → 422 Unprocessable Entity
+2. Pydantic valida con UserCreate
+   Si falta algo → 422 automáticamente
             │
             ▼
-3. FastAPI llama a create_user(user, db)
-   user = UserCreate(nombre="Seba", email="seba@gmail.com")
-   db   = sesión de SQLite abierta por get_db()
+3. SQLAlchemy consulta si el email ya existe:
+   SELECT * FROM users WHERE email = "seba@gmail.com"
+   Si existe → 400 "El email ya está registrado"
             │
             ▼
-4. SQLAlchemy consulta si el email ya existe:
-   SELECT * FROM users WHERE email = "seba@gmail.com" LIMIT 1
-   Si existe → 400 Bad Request "El email ya está registrado"
-            │
-            ▼
-5. SQLAlchemy crea la fila nueva:
+4. SQLAlchemy inserta la fila nueva:
    INSERT INTO users (nombre, email) VALUES ("Seba", "seba@gmail.com")
             │
             ▼
-6. db.refresh() lee el objeto completo desde la DB:
-   User(id=1, nombre="Seba", email="seba@gmail.com", created_at=...)
+5. db.refresh() lee el objeto completo con id y created_at
             │
             ▼
-7. Pydantic convierte User → JSON usando UserResponse:
+6. Pydantic convierte User → JSON usando UserResponse
    {"id": 1, "nombre": "Seba", "email": "seba@gmail.com", "created_at": "..."}
             │
             ▼
-8. FastAPI devuelve el JSON con status 201 Created
+7. FastAPI devuelve el JSON con status 201 Created
 ```
 
 ### La diferencia entre Model y Schema
 
 ```
-Model (SQLAlchemy)              Schema (Pydantic)
-──────────────────              ─────────────────
-Habla con la DB                 Habla con el cliente
-Define la tabla                 Define el JSON
-Representa una fila             Representa un mensaje
-
-User                            UserCreate
-├── id (generado por DB)        ├── nombre
-├── nombre                      └── email
-├── email
-└── created_at (generado)       UserResponse
-                                ├── id
-                                ├── nombre
-                                ├── email
-                                └── created_at
+Model (SQLAlchemy)         Schema (Pydantic)
+──────────────────         ─────────────────
+Habla con la DB            Habla con el cliente
+Define la tabla            Define el JSON
+Representa una fila        Representa un mensaje
 ```
 
 ---
 
-## 7. La aplicación Python — main.py
+## 6. La aplicación — main.py
 
-### Los decoradores `@app.post`, `@app.get`, etc.
+### Los decoradores `@app.post`, `@app.get`
 
-FastAPI usa decoradores para registrar funciones como manejadores de requests. Cuando llega una petición, FastAPI busca qué función está registrada para esa URL y método, y la ejecuta automáticamente.
+FastAPI usa decoradores para registrar funciones como manejadores de requests. Cuando llega una petición, FastAPI busca qué función está registrada y la ejecuta automáticamente:
 
 ```python
-@app.post("/users")       # método HTTP + URL
-def create_user(...):     # función que se ejecuta cuando llega ese request
+@app.post("/users")    # método HTTP + URL
+def create_user(...):  # FastAPI la llama automáticamente, vos nunca la llamás
     ...
 ```
 
-Los métodos HTTP indican la intención:
+### Los métodos HTTP
 
-| Método | Intención | Ejemplo |
-|---|---|---|
-| GET | Leer datos | Ver lista de usuarios |
-| POST | Crear un recurso | Registrar un usuario nuevo |
-| PUT | Actualizar un recurso | Cambiar el email de un usuario |
-| DELETE | Borrar un recurso | Eliminar un usuario |
-
-### Los argumentos de los endpoints
-
-FastAPI inyecta los argumentos automáticamente — nunca los pasás vos:
-
-```python
-def create_user(
-    user: schemas.UserCreate,      # viene del JSON del request
-    db: Session = Depends(get_db)  # viene de get_db() — la sesión de DB
-):
-```
+| Método | Intención |
+|---|---|
+| GET | Leer datos |
+| POST | Crear un recurso |
+| PUT | Actualizar un recurso |
+| DELETE | Borrar un recurso |
 
 ### Los códigos HTTP de respuesta
 
 | Código | Significado |
 |---|---|
-| 200 | OK — respuesta exitosa |
-| 201 | Created — recurso creado |
-| 400 | Bad Request — el cliente mandó algo incorrecto |
-| 404 | Not Found — el recurso no existe |
-| 422 | Unprocessable Entity — datos inválidos (Pydantic) |
-| 500 | Internal Server Error — bug en el servidor |
+| 200 | OK |
+| 201 | Created |
+| 400 | Bad Request |
+| 404 | Not Found |
+| 422 | Datos inválidos (Pydantic) |
+| 500 | Error interno del servidor |
 
 ---
 
-## 8. Tests automáticos
+## 7. Tests automáticos
 
-Los tests usan una base de datos en memoria (`sqlite:///:memory:`) que se crea al empezar los tests y se destruye al terminar. Esto garantiza que los tests no tocan la base de datos real y son siempre reproducibles.
+Los tests usan dos archivos:
+
+### `conftest.py` — Configuración de tests
+
+Pytest lo detecta automáticamente antes de correr cualquier test. Crea una base de datos SQLite en un archivo temporal (`test_database.db`), configura el cliente de test y lo limpia al terminar:
 
 ```python
-# La DB de tests reemplaza a la DB real mediante override de dependencia
+# Usa SQLite en archivo temporal (no en memoria) para compartir
+# la misma DB entre todas las conexiones durante los tests
+TEST_DATABASE_URL = "sqlite:///./test_database.db"
+
+# Reemplaza get_db() con una versión que usa la DB de test
 app.dependency_overrides[get_db] = override_get_db
+
+# El fixture "client" es lo que reciben los tests como argumento
+@pytest.fixture
+def client():
+    with TestClient(app) as c:
+        yield c
 ```
 
-Para correr los tests:
+### `test_main.py` — Los tests
+
+Cada función de test recibe `client` — pytest lo inyecta automáticamente desde `conftest.py`:
+
 ```bash
 pytest test_main.py -v
 ```
 
 ---
 
-## 9. Dependencias
-
-```
-fastapi          # El framework de la API
-uvicorn          # El servidor que corre FastAPI
-httpx            # Cliente HTTP para el TestClient
-pytest           # Framework de tests
-sqlalchemy       # ORM — traduce Python a SQL
-python-multipart # Necesario para parsear formularios
-```
-
----
-
-## 10. Docker y el problema de persistencia
+## 8. Docker
 
 ### `Dockerfile`
 
 ```dockerfile
-FROM python:3.13-slim    # imagen base de Python
-WORKDIR /app             # directorio de trabajo dentro del contenedor
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+FROM python:3.13-slim      # imagen base liviana de Python
+WORKDIR /app               # directorio de trabajo dentro del contenedor
+COPY requirements.txt .    # copiar deps primero para aprovechar cache
+RUN pip install --no-cache-dir -r requirements.txt  # instalar deps
+COPY . .                   # copiar el código
+EXPOSE 8000                # documentar el puerto (informativo)
+CMD ["sh", "-c",
+  # Crear tablas ANTES de arrancar el servidor
+  "python -c 'from database import engine; import models; models.Base.metadata.create_all(bind=engine)'"
+  # Solo si create_all tuvo éxito, arrancar uvicorn
+  " && uvicorn main:app --host 0.0.0.0 --port $PORT"]
+  # $PORT es inyectado por Render dinámicamente
 ```
 
-### El problema: los datos no persisten en el contenedor
+### Por qué psycopg2-binary es crítico
 
-SQLite guarda los datos en un archivo dentro del contenedor. Cuando el contenedor se destruye (por un redespliegue), el archivo desaparece.
+`psycopg2-binary` es el driver que permite a SQLAlchemy hablar con PostgreSQL. Sin él, la app no puede conectarse aunque `DATABASE_URL` esté correctamente configurada:
 
-**No es necesario dockerizar cada vez que se agrega un usuario.** El problema es más fundamental: aunque no redesplegaras nunca, si el contenedor se reinicia por cualquier razón (error, actualización de Render, etc.), los datos se pierden.
-
-### La solución para producción: PostgreSQL externo
-
-Cambiar la `DATABASE_URL` para apuntar a un servidor PostgreSQL que vive fuera del contenedor:
-
-```python
-# Desarrollo local (SQLite):
-DATABASE_URL = "sqlite:///./database.db"
-
-# Producción (PostgreSQL en Render):
-DATABASE_URL = "postgresql://usuario:password@host/nombre_db"
 ```
+requirements.txt sin psycopg2-binary:
+GitHub Actions buildea imagen → psycopg2 NO está en la imagen
+Render descarga imagen → app intenta conectarse a PostgreSQL
+import psycopg2 → ModuleNotFoundError ❌
+app cae al fallback → usa SQLite dentro del contenedor
 
-El código de `models.py`, `schemas.py` y los endpoints no cambia — SQLAlchemy abstrae las diferencias entre motores de base de datos.
+requirements.txt con psycopg2-binary:
+GitHub Actions buildea imagen → psycopg2 SÍ está en la imagen
+Render descarga imagen → app se conecta a PostgreSQL ✅
+datos persisten en PostgreSQL
+```
 
 ---
 
-## 11. CI/CD con GitHub Actions
+## 9. CI/CD con GitHub Actions
 
 El pipeline tiene 4 jobs al hacer push a `main` o `develop`:
 
@@ -435,49 +361,155 @@ El pipeline tiene 4 jobs al hacer push a `main` o `develop`:
                   → [deploy-production]  (solo en main)
 ```
 
+### Job 1 — test
+Instala Python, instala dependencias y corre los tests con pytest. Si alguno falla, el pipeline se detiene.
+
+### Job 2 — docker
+Construye la imagen Docker y la publica en GHCR:
+- Login a GHCR con el token automático de GitHub Actions
+- Configura `docker/setup-buildx-action` (necesario para cache)
+- Genera el tag según la rama (`main` → `:main`, `develop` → `:develop`)
+- Construye la imagen con todas las dependencias incluyendo `psycopg2-binary`
+- La sube a `ghcr.io/sebaheredia/fastapi2:<rama>`
+
+### Jobs 3 y 4 — deploy
+Llama a la API de Render con dos pasos:
+1. **PATCH /image** — le dice a Render qué imagen de GHCR usar
+2. **POST /deploys** — le dice a Render que despliege ahora
+
 ### Secrets requeridos en GitHub
 
 | Secret | Descripción |
 |---|---|
-| `RENDER_API_KEY` | Token de Render para usar su API |
-| `RENDER_STAGING_SERVICE_ID` | ID del servicio staging en Render |
-| `RENDER_PRODUCTION_SERVICE_ID` | ID del servicio producción en Render |
-| `GHCR_TOKEN` | Token de GitHub con permiso `read:packages` |
+| `RENDER_API_KEY` | Token de Render → Account Settings → API Keys |
+| `RENDER_STAGING_SERVICE_ID` | ID del servicio staging → srv-xxx |
+| `RENDER_PRODUCTION_SERVICE_ID` | ID del servicio producción → srv-xxx |
+| `GHCR_TOKEN` | Token GitHub con permiso `read:packages` |
 
 ---
 
-## 12. GHCR — Dónde se guardan las imágenes
+## 10. GHCR — Dónde se guardan las imágenes Docker
 
-Las imágenes Docker se publican en GitHub Container Registry:
+Las imágenes se publican en GitHub Container Registry:
 
 ```
 ghcr.io/sebaheredia/fastapi2:main      ← producción
 ghcr.io/sebaheredia/fastapi2:develop   ← staging
 ```
 
-Ver imágenes publicadas:
+Cada imagen tiene todas las dependencias incluidas (`psycopg2-binary`, SQLAlchemy, FastAPI, etc). Render solo descarga y corre — no instala nada por su cuenta.
+
+---
+
+## 11. Despliegue en Render
+
+Render descarga la imagen ya construida de GHCR y la corre directamente.
+
 ```
-https://github.com/sebaheredia/FastApi2/pkgs/container/fastapi2
+Enfoque tradicional (lo que NO hacemos):
+Render clona repo → Render buildea Docker → corre
+(trabajo duplicado, posibles diferencias con lo testeado)
+
+Este proyecto:
+GitHub Actions buildea → sube a GHCR → Render descarga → corre
+(la imagen que corre es exactamente la que fue testeada)
+```
+
+| Servicio | Runtime | Rama | URL |
+|---|---|---|---|
+| `fastapi2-staging-docker` | Image (GHCR) | `develop` | https://fastapi2-staging-docker.onrender.com |
+| `fastapi2-production` | Image (GHCR) | `main` | https://fastapi2-production.onrender.com |
+
+---
+
+## 12. Base de datos PostgreSQL
+
+### ¿Por qué no SQLite en producción?
+
+SQLite guarda los datos en un archivo dentro del contenedor Docker. Cuando Render redesplega (destruye el contenedor viejo y crea uno nuevo), ese archivo desaparece — todos los datos se pierden.
+
+```
+SQLite en Docker:
+Deploy nuevo → contenedor viejo destruido → database.db desaparece → datos perdidos ❌
+
+PostgreSQL externo:
+Deploy nuevo → contenedor viejo destruido → PostgreSQL intacto → datos persisten ✅
+```
+
+### El servicio PostgreSQL en Render
+
+| Campo | Valor |
+|---|---|
+| **Nombre** | `fastapi2-db` |
+| **Plan** | Free |
+| **Región** | Oregon (US West) — misma que los servicios web |
+
+### Dónde están físicamente los datos
+
+```
+Contenedor Docker (app)          Servidor PostgreSQL (Render)
+───────────────────────          ────────────────────────────
+main.py                          tabla users:
+database.py   ────────►          id | nombre | email | created_at
+models.py                         1 | Seba   | s@g.c | 2026-04-07
+schemas.py                        2 | Isa    | i@g.c | 2026-04-07
+
+Redespliegue:
+Contenedor nuevo ────────►       mismos datos ✅
 ```
 
 ---
 
-## 13. Despliegue en Render
+## 13. Cómo se conecta Docker con PostgreSQL
 
-Render descarga la imagen ya construida de GHCR y la corre directamente — no vuelve a buildear Docker.
+La conexión se hace a través de la variable de entorno `DATABASE_URL`. Render la inyecta automáticamente dentro del contenedor al arrancarlo:
 
-| Servicio | Rama | URL |
+```
+Render UI: DATABASE_URL = postgresql://usuario:pass@host/db
+        │
+        ▼
+Render arranca el contenedor y hace internamente:
+export DATABASE_URL="postgresql://..."
+        │
+        ▼
+Python lee: os.getenv("DATABASE_URL")
+        │
+        ▼
+SQLAlchemy crea el engine con esa URL
+        │
+        ▼
+psycopg2 (driver) establece la conexión TCP a PostgreSQL
+        │
+        ▼
+Los endpoints pueden hacer queries: INSERT, SELECT, DELETE
+```
+
+No hay código especial entre Docker y PostgreSQL — es simplemente una variable de entorno con la URL de conexión. `os.getenv()` es todo lo que se necesita en el código.
+
+### URL interna vs externa
+
+| Tipo | Formato | Cuándo usar |
 |---|---|---|
-| `fastapi2-staging` | `develop` | https://fastapi2-staging.onrender.com |
-| `fastapi2-production` | `main` | https://fastapi2-production.onrender.com |
+| **Internal** | `postgresql://user:pass@dpg-xxx-a/db` | Desde servicios dentro de Render |
+| **External** | `postgresql://user:pass@dpg-xxx-a.oregon-postgres.render.com/db` | Desde fuera de Render (psql local, DBeaver) |
 
-Los servicios son **públicos** — accesibles desde cualquier máquina en el mundo.
-
-El plan free de Render apaga el servicio tras 15 minutos de inactividad. El primer request puede tardar hasta 60 segundos.
+En `DATABASE_URL` del servicio web se usa la **Internal** porque la app corre dentro de Render.
 
 ---
 
-## 14. Flujo completo de trabajo
+## 14. SQLite vs PostgreSQL
+
+| | SQLite | PostgreSQL |
+|---|---|---|
+| **Dónde vive** | Archivo en disco | Servidor separado |
+| **En Docker** | Se pierde al reiniciar | Nunca se pierde |
+| **Conexiones** | Una a la vez | Muchas simultáneas |
+| **Driver Python** | Incluido en Python | Requiere `psycopg2-binary` |
+| **Para qué** | Desarrollo local y tests | Producción |
+
+---
+
+## 15. Flujo completo de trabajo
 
 ```
 Desarrollador hace cambios
@@ -487,66 +519,76 @@ git push origin develop
         │
         ▼
 GitHub Actions:
-[test] pytest → [docker] build + push :develop → [deploy-staging]
+[test] pytest → [docker] build imagen con psycopg2 → push :develop a GHCR
         │
         ▼
-Render descarga imagen :develop de GHCR y la corre
+Render API: actualizar imagen → triggerear deploy
         │
         ▼
-Verificar en https://fastapi2-staging.onrender.com/docs
+Render descarga imagen :develop de GHCR
+Render arranca contenedor inyectando DATABASE_URL
+CMD crea tablas en PostgreSQL → uvicorn arranca
+        │
+        ▼
+Verificar en https://fastapi2-staging-docker.onrender.com/docs
         │
         ▼
 git merge develop → main && git push origin main
         │
         ▼
-GitHub Actions:
-[test] pytest → [docker] build + push :main → [deploy-production]
-        │
-        ▼
-Render descarga imagen :main de GHCR y la corre
-        │
-        ▼
-Verificar en https://fastapi2-production.onrender.com/docs
+Mismo proceso → imagen :main → deploy producción
 ```
 
 ---
 
-## 15. Cómo probar el servicio desplegado
+## 16. Cómo probar el servicio desplegado
 
 ### Desde el navegador
 
 ```
-https://fastapi2-production.onrender.com/docs
+https://fastapi2-staging-docker.onrender.com/docs
+```
+
+### Verificar qué DB está usando
+
+```bash
+curl https://fastapi2-staging-docker.onrender.com/db-info
+# Debe devolver la URL de PostgreSQL, no sqlite
 ```
 
 ### Desde la terminal
 
 ```bash
-# Crear un usuario
-curl -X POST "https://fastapi2-production.onrender.com/users" \
+# Crear usuario
+curl -X POST "https://fastapi2-staging-docker.onrender.com/users" \
      -H "Content-Type: application/json" \
      -d '{"nombre": "Seba", "email": "seba@gmail.com"}'
 
-# Listar todos los usuarios
-curl https://fastapi2-production.onrender.com/users
+# Listar usuarios
+curl https://fastapi2-staging-docker.onrender.com/users
 
-# Obtener usuario con ID 1
-curl https://fastapi2-production.onrender.com/users/1
+# Obtener usuario
+curl https://fastapi2-staging-docker.onrender.com/users/1
 
-# Borrar usuario con ID 1
-curl -X DELETE https://fastapi2-production.onrender.com/users/1
+# Borrar usuario
+curl -X DELETE https://fastapi2-staging-docker.onrender.com/users/1
+```
 
-# Endpoints originales
-curl https://fastapi2-production.onrender.com/ping
-curl https://fastapi2-production.onrender.com/hello/Seba
-curl -X POST "https://fastapi2-production.onrender.com/sum?a=5&b=3"
+### Ver los datos en PostgreSQL (desde psql)
+
+```bash
+psql "postgresql://fastapi2_db_user:PASSWORD@dpg-xxx.oregon-postgres.render.com/fastapi2_db"
+
+# Dentro de psql:
+\dt                  # listar tablas
+SELECT * FROM users; # ver todos los usuarios
 ```
 
 ---
 
-## 16. Cómo correr el proyecto localmente
+## 17. Cómo correr el proyecto localmente
 
-### Sin Docker (recomendado para desarrollo)
+### Sin Docker
 
 ```bash
 git clone https://github.com/sebaheredia/FastApi2.git
@@ -554,11 +596,10 @@ cd FastApi2
 pip install -r requirements.txt
 uvicorn main:app --reload
 # http://localhost:8000/docs
+# Usa SQLite automáticamente (database.db se crea solo)
 
 pytest test_main.py -v
 ```
-
-El archivo `database.db` se crea automáticamente en la carpeta del proyecto. Los datos persisten entre reinicios porque viven en tu disco, fuera de cualquier contenedor.
 
 ### Con Docker
 
@@ -566,13 +607,16 @@ El archivo `database.db` se crea automáticamente en la carpeta del proyecto. Lo
 docker build -t fastapi2 .
 docker run -p 8000:8000 fastapi2
 # http://localhost:8000/docs
+# Datos se pierden al detener el contenedor (SQLite dentro del Docker)
 ```
 
-Con Docker los datos se pierden al detener el contenedor porque `database.db` vive dentro del contenedor. Para desarrollo con Docker y datos persistentes se usaría un volumen:
+### Con Docker y PostgreSQL local
 
 ```bash
-docker run -p 8000:8000 -v $(pwd)/data:/app/data fastapi2
-# monta la carpeta ./data de tu máquina en /app/data del contenedor
+# Crear un archivo .env (no subir a GitHub)
+echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/fastapi2" > .env
+
+docker run -p 8000:8000 --env-file .env fastapi2
 ```
 
 ---
