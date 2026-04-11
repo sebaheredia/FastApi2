@@ -1,31 +1,45 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
+import os
 
 import models
 import schemas
 from database import engine, get_db
-from fastapi.middleware.cors import CORSMiddleware
 
-
-# NO hay create_all acá
 app = FastAPI()
 
+# CORS — debe ir inmediatamente después de crear app, antes de los endpoints
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/ping")
 def ping():
     return {"ping": "pong"}
 
-
 @app.get("/hello/{name}")
 def hello(name: str):
     return {"message": f"Hola, {name}!"}
-
 
 @app.post("/sum")
 def sum_numbers(a: float, b: float):
     return {"result": a + b}
 
+@app.get("/db-info")
+def db_info():
+    return {"database_url": DATABASE_URL}
+
+@app.get("/config")
+def config():
+    return {
+        "allowed_origins": "*",
+        "environment": os.environ.get("ENVIRONMENT", "unknown")
+    }
 
 @app.post("/users", response_model=schemas.UserResponse, status_code=201)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -38,11 +52,9 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)
     return db_user
 
-
 @app.get("/users", response_model=List[schemas.UserResponse])
 def list_users(db: Session = Depends(get_db)):
     return db.query(models.User).all()
-
 
 @app.get("/users/{user_id}", response_model=schemas.UserResponse)
 def get_user(user_id: int, db: Session = Depends(get_db)):
@@ -50,7 +62,6 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
-
 
 @app.delete("/users/{user_id}", response_model=schemas.UserResponse)
 def delete_user(user_id: int, db: Session = Depends(get_db)):
@@ -60,23 +71,3 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return user
-
-@app.get("/db-info")
-def db_info():
-    from database import DATABASE_URL
-    return {"database_url": DATABASE_URL}
-
-@app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # en producción poner la URL del frontend
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/config")
-def config():
-    import os
-    return {
-        "allowed_origins": "*",
-        "environment": os.environ.get("ENVIRONMENT", "unknown")
-    }
