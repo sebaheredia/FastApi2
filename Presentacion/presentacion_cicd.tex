@@ -1,0 +1,1212 @@
+\documentclass[aspectratio=169]{beamer}
+
+% ─── Tema y colores ───────────────────────────────────────────
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\definecolor{azuloscuro}{RGB}{15, 23, 42}
+\definecolor{azulmedio}{RGB}{30, 58, 138}
+\definecolor{azulclaro}{RGB}{96, 165, 250}
+\definecolor{verde}{RGB}{16, 185, 129}
+\definecolor{naranja}{RGB}{245, 158, 11}
+\definecolor{gris}{RGB}{100, 116, 139}
+\definecolor{rojo}{RGB}{239, 68, 68}
+\definecolor{fondoclaro}{RGB}{241, 245, 249}
+
+\setbeamercolor{palette primary}{bg=azuloscuro, fg=white}
+\setbeamercolor{palette secondary}{bg=azulmedio, fg=white}
+\setbeamercolor{palette tertiary}{bg=azulclaro, fg=azuloscuro}
+\setbeamercolor{structure}{fg=azulmedio}
+\setbeamercolor{frametitle}{bg=azuloscuro, fg=white}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{subtitle}{fg=azulclaro}
+\setbeamercolor{block title}{bg=azulmedio, fg=white}
+\setbeamercolor{block body}{bg=fondoclaro, fg=azuloscuro}
+\setbeamercolor{block title alerted}{bg=rojo, fg=white}
+\setbeamercolor{block body alerted}{bg=red!10, fg=azuloscuro}
+\setbeamercolor{block title example}{bg=verde, fg=white}
+\setbeamercolor{block body example}{bg=green!10, fg=azuloscuro}
+
+% ─── Paquetes ─────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+
+% ─── Estilo de codigo ─────────────────────────────────────────
+\lstdefinestyle{bash}{
+  language=bash,
+  basicstyle=\ttfamily\footnotesize\color{white},
+  keywordstyle=\color{azulclaro}\bfseries,
+  commentstyle=\color{gris}\itshape,
+  stringstyle=\color{verde},
+  backgroundcolor=\color{azuloscuro},
+  frame=single,
+  framerule=0pt,
+  numbers=none,
+  breaklines=true,
+  showstringspaces=false,
+  xleftmargin=5pt,
+  xrightmargin=5pt,
+}
+
+\lstdefinestyle{yaml}{
+  basicstyle=\ttfamily\tiny\color{white},
+  keywordstyle=\color{azulclaro}\bfseries,
+  commentstyle=\color{gris}\itshape,
+  stringstyle=\color{verde},
+  backgroundcolor=\color{azuloscuro},
+  frame=single,
+  framerule=0pt,
+  numbers=none,
+  breaklines=true,
+  showstringspaces=false,
+  xleftmargin=5pt,
+  xrightmargin=5pt,
+}
+
+% ─── Metadatos ────────────────────────────────────────────────
+\title{Integracion y Despliegue Continuo}
+\subtitle{Git, GitHub y GitHub Actions para proyectos de procesamiento satelital}
+\author{ADAIP}
+\institute{Area de Desarrollos Avanzados de Imagenes y Percepcion}
+\date{\today}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+% ══════════════════════════════════════════════════════════════
+\begin{document}
+
+% ─── Portada ──────────────────────────────────────────────────
+{
+\setbeamercolor{background canvas}{bg=azuloscuro}
+\begin{frame}[plain]
+  \vspace{1cm}
+  \begin{center}
+    {\color{azulclaro}\large\textbf{PROCESADORES SATELITALES}}\\[0.3cm]
+    \rule{8cm}{0.4pt}\\[0.5cm]
+    {\color{white}\Huge\textbf{Integracion y Despliegue}}\\[0.2cm]
+    {\color{white}\Huge\textbf{Continuo}}\\[0.5cm]
+    {\color{azulclaro}\large Git $\cdot$ GitHub $\cdot$ GitHub Actions}\\[1cm]
+    \rule{8cm}{0.4pt}\\[0.5cm]
+    {\color{gris}\small ADAIP --- \today}
+  \end{center}
+\end{frame}
+}
+
+% ─── Indice ───────────────────────────────────────────────────
+\begin{frame}{Contenidos}
+  \tableofcontents
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════
+\section{Que es la Integracion Continua?}
+
+\begin{frame}{El problema que resuelve}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{alertblock}{Sin CI/CD}
+      \begin{itemize}
+        \item Cada desarrollador trabaja aislado
+        \item La integracion se hace al final
+        \item Los errores aparecen tarde
+        \item El deploy es un proceso manual y riesgoso
+        \item \textit{``Funciona en mi maquina''}
+      \end{itemize}
+    \end{alertblock}
+
+    \column{0.5\textwidth}
+    \begin{exampleblock}{Con CI/CD}
+      \begin{itemize}
+        \item El codigo se integra continuamente
+        \item Los errores aparecen inmediatamente
+        \item Los tests se corren automaticamente
+        \item El deploy es automatico y reproducible
+        \item El mismo codigo en todos los entornos
+      \end{itemize}
+    \end{exampleblock}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Definiciones}
+  \begin{block}{CI --- Integracion Continua}
+    Cada vez que un desarrollador sube codigo, se ejecuta automaticamente una bateria de tests para verificar que nada esta roto. Si algo falla, se notifica inmediatamente antes de que el problema se propague.
+  \end{block}
+
+  \vspace{0.4cm}
+
+  \begin{block}{CD --- Despliegue Continuo}
+    Si los tests pasan, el codigo se despliega automaticamente al servidor correspondiente. Sin intervencion manual, sin pasos olvidados, siempre reproducible.
+  \end{block}
+
+  \vspace{0.4cm}
+
+  \begin{center}
+    \begin{tikzpicture}[node distance=0.6cm]
+      \node[fill=azulmedio, text=white, rounded corners, minimum width=1.8cm, minimum height=0.6cm] (c) {Commit};
+      \node[fill=verde, text=white, rounded corners, minimum width=1.8cm, minimum height=0.6cm, right=of c] (t) {Tests};
+      \node[fill=naranja, text=white, rounded corners, minimum width=1.8cm, minimum height=0.6cm, right=of t] (b) {Build};
+      \node[fill=rojo!80, text=white, rounded corners, minimum width=1.8cm, minimum height=0.6cm, right=of b] (d) {Deploy};
+      \draw[->, thick, azulclaro] (c) -- (t);
+      \draw[->, thick, azulclaro] (t) -- (b);
+      \draw[->, thick, azulclaro] (b) -- (d);
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════
+\section{Git --- Control de versiones}
+
+\begin{frame}{Que es Git?}
+  Git es un sistema de \textbf{control de versiones distribuido}. Registra todos los cambios del codigo a lo largo del tiempo, permitiendo:
+
+  \vspace{0.4cm}
+  \begin{columns}
+    \column{0.33\textwidth}
+    \begin{center}
+      \textbf{Historial completo}\\[0.2cm]
+      {\small Cada cambio queda registrado con autor, fecha y mensaje}
+    \end{center}
+
+    \column{0.33\textwidth}
+    \begin{center}
+      \textbf{Ramas paralelas}\\[0.2cm]
+      {\small Multiples lineas de desarrollo simultaneas}
+    \end{center}
+
+    \column{0.33\textwidth}
+    \begin{center}
+      \textbf{Reversibilidad}\\[0.2cm]
+      {\small Volver a cualquier estado anterior del codigo}
+    \end{center}
+  \end{columns}
+
+  \vspace{0.4cm}
+  \begin{block}{Conceptos clave}
+    \begin{itemize}
+      \item \textbf{Repositorio}: carpeta con todo el historial del proyecto
+      \item \textbf{Commit}: foto del estado del codigo en un momento dado
+      \item \textbf{Rama (branch)}: linea de desarrollo independiente
+      \item \textbf{Remote}: copia del repositorio en un servidor (GitHub)
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Comandos fundamentales --- Parte 1}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{exampleblock}{\texttt{git add}}
+      Prepara archivos para el proximo commit
+      \begin{lstlisting}[style=bash]
+git add archivo.py   # un archivo
+git add .            # todos los cambios
+git add src/         # una carpeta
+      \end{lstlisting}
+    \end{exampleblock}
+
+    \vspace{0.3cm}
+
+    \begin{exampleblock}{\texttt{git commit}}
+      Guarda los cambios con un mensaje
+      \begin{lstlisting}[style=bash]
+git commit -m "descripcion"
+git commit --amend   # modificar el ultimo
+      \end{lstlisting}
+    \end{exampleblock}
+
+    \column{0.5\textwidth}
+    \begin{block}{El flujo basico}
+      \begin{center}
+        \begin{tikzpicture}[node distance=0.5cm]
+          \node[fill=gris!30, rounded corners,
+                minimum width=3cm, minimum height=0.7cm] (wd)
+                {Working Directory};
+          \node[fill=naranja!30, rounded corners,
+                minimum width=3cm, minimum height=0.7cm,
+                below=of wd] (sa) {Staging Area};
+          \node[fill=verde!30, rounded corners,
+                minimum width=3cm, minimum height=0.7cm,
+                below=of sa] (repo) {Repositorio local};
+          \draw[->, thick] (wd) -- node[right]{\tiny git add} (sa);
+          \draw[->, thick] (sa) -- node[right]{\tiny git commit} (repo);
+        \end{tikzpicture}
+      \end{center}
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Comandos fundamentales --- Parte 2}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{exampleblock}{\texttt{git push}}
+      Sube commits al servidor remoto
+      \begin{lstlisting}[style=bash]
+git push origin main
+git push origin develop
+git push --force origin main
+      \end{lstlisting}
+    \end{exampleblock}
+
+    \vspace{0.3cm}
+
+    \begin{exampleblock}{\texttt{git pull}}
+      Descarga y fusiona cambios remotos
+      \begin{lstlisting}[style=bash]
+git pull origin main
+git pull --rebase origin main
+      \end{lstlisting}
+    \end{exampleblock}
+
+    \column{0.5\textwidth}
+    \begin{exampleblock}{\texttt{git fetch}}
+      Descarga cambios SIN fusionarlos
+      \begin{lstlisting}[style=bash]
+git fetch origin
+git fetch --all
+      \end{lstlisting}
+    \end{exampleblock}
+
+    \vspace{0.3cm}
+
+    \begin{block}{fetch vs pull}
+      \begin{itemize}
+        \item \texttt{pull} = \texttt{fetch} + \texttt{merge}
+        \item \texttt{fetch} permite revisar antes de fusionar
+      \end{itemize}
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Comandos de ramas}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{exampleblock}{\texttt{git checkout / git switch}}
+      Cambia entre ramas
+      \begin{lstlisting}[style=bash]
+git checkout main
+git checkout -b feature  # crear y cambiar
+git switch develop
+git switch -c nueva-rama
+      \end{lstlisting}
+    \end{exampleblock}
+
+    \vspace{0.2cm}
+
+    \begin{exampleblock}{\texttt{git merge}}
+      Fusiona una rama en otra
+      \begin{lstlisting}[style=bash]
+git checkout main
+git merge develop
+      \end{lstlisting}
+    \end{exampleblock}
+
+    \column{0.5\textwidth}
+    \begin{exampleblock}{\texttt{git status / log}}
+      \begin{lstlisting}[style=bash]
+git status
+git log --oneline
+git log --oneline --graph
+git diff
+      \end{lstlisting}
+    \end{exampleblock}
+
+    \vspace{0.2cm}
+
+    \begin{exampleblock}{\texttt{git stash}}
+      Guarda cambios temporalmente
+      \begin{lstlisting}[style=bash]
+git stash
+git stash pop
+      \end{lstlisting}
+    \end{exampleblock}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Tags --- Versiones del proyecto}
+  Los tags marcan puntos especificos en la historia, tipicamente versiones de lanzamiento.
+
+  \vspace{0.3cm}
+
+  \begin{block}{Versionado semantico: MAJOR.MINOR.PATCH}
+    \begin{center}
+      \texttt{v\textcolor{rojo}{1}.\textcolor{naranja}{2}.\textcolor{verde}{3}}\\[0.3cm]
+      \textcolor{rojo}{\textbf{MAJOR}}: cambio que rompe compatibilidad\\
+      \textcolor{naranja}{\textbf{MINOR}}: funcionalidad nueva, compatible\\
+      \textcolor{verde}{\textbf{PATCH}}: correccion de bugs
+    \end{center}
+  \end{block}
+
+  \vspace{0.3cm}
+
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{lstlisting}[style=bash]
+# Crear tag
+git tag v1.0.0
+git tag -a v1.0.0 -m "Primera version"
+
+# Subir a GitHub
+git push origin v1.0.0
+git push origin --tags
+    \end{lstlisting}
+
+    \column{0.5\textwidth}
+    \begin{lstlisting}[style=bash]
+# Ver tags
+git tag
+git tag -l "v1.*"
+
+# Ir a un tag especifico
+git checkout v1.0.0
+    \end{lstlisting}
+  \end{columns}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════
+\section{GitHub --- Trabajo en equipo}
+
+\begin{frame}{GitHub vs Git}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{Git}
+      \begin{itemize}
+        \item Herramienta de control de versiones
+        \item Corre en tu maquina local
+        \item No requiere internet
+        \item Maneja el historial del codigo
+      \end{itemize}
+    \end{block}
+
+    \column{0.5\textwidth}
+    \begin{block}{GitHub}
+      \begin{itemize}
+        \item Plataforma web para alojar repositorios
+        \item Permite colaboracion entre equipos
+        \item Issues, Projects, Actions, Releases
+        \item Alternativas: GitLab, Bitbucket
+      \end{itemize}
+    \end{block}
+  \end{columns}
+
+  \vspace{0.5cm}
+
+  \begin{alertblock}{Analogia}
+    Git es el motor del auto. GitHub es la autopista donde circula.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Estrategia de ramas para equipos}
+  \begin{center}
+    \begin{tikzpicture}[scale=0.9]
+      \draw[thick, azulmedio] (0,2) -- (10,2);
+      \node[left] at (0,2) {\small\textbf{main}};
+      \node[fill=azulmedio, circle, minimum size=6pt, inner sep=0pt] at (0,2) {};
+      \node[fill=azulmedio, circle, minimum size=6pt, inner sep=0pt] at (5,2) {};
+      \node[fill=azulmedio, circle, minimum size=6pt, inner sep=0pt] at (10,2) {};
+      \node[above] at (5,2.1) {\tiny v1.0};
+      \node[above] at (10,2.1) {\tiny v1.1};
+
+      \draw[thick, verde] (0,1) -- (10,1);
+      \node[left] at (0,1) {\small\textbf{develop}};
+
+      \draw[thick, naranja] (1,1) -- (2,0.2) -- (4,0.2) -- (5,1);
+      \node[below] at (2.5,0.2) {\tiny feature/proc-sar};
+
+      \draw[thick, naranja!70] (3,1) -- (3.5,0.5) -- (6,0.5) -- (7,1);
+      \node[below] at (5,0.5) {\tiny feature/calibracion};
+
+      \draw[dashed, azulclaro, thick] (5,1) -- (5,2);
+      \draw[dashed, azulclaro, thick] (10,1) -- (10,2);
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.2cm}
+  \begin{itemize}
+    \item \textbf{main}: codigo en produccion, siempre estable
+    \item \textbf{develop}: integracion de funcionalidades, base para testing
+    \item \textbf{feature/xxx}: desarrollo de funcionalidades individuales
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Issues --- Gestion de tareas}
+  Los \textbf{Issues} son el sistema de seguimiento de tareas de GitHub.
+
+  \vspace{0.3cm}
+
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{Tipos de Issues}
+      \begin{itemize}
+        \item \textbf{Bug}: algo no funciona correctamente
+        \item \textbf{Feature}: nueva funcionalidad
+        \item \textbf{Research}: investigacion tecnica
+        \item \textbf{Docs}: documentacion pendiente
+      \end{itemize}
+    \end{block}
+
+    \column{0.5\textwidth}
+    \begin{block}{Buenas practicas}
+      \begin{itemize}
+        \item Titulo claro y descriptivo
+        \item Descripcion con contexto
+        \item Asignar responsable
+        \item Agregar etiquetas (labels)
+        \item Vincular con un Milestone
+      \end{itemize}
+    \end{block}
+  \end{columns}
+
+  \vspace{0.3cm}
+
+  \begin{exampleblock}{Ejemplo para procesamiento SAR}
+    \textbf{\#42 --- Implementar correccion radiometrica para Sentinel-1}\\
+    \small Aplicar LUT de calibracion segun documentacion ESA. Incluir test con escena de referencia de la Patagonia.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Milestones y Projects}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{Milestones --- Hitos}
+      Agrupan Issues relacionados con una meta o fecha limite.
+
+      \vspace{0.2cm}
+      Ejemplo:
+      \begin{itemize}
+        \item \textbf{v1.0 --- Procesador basico}\\{\small Issues \#1, \#2, \#5, \#8}
+        \item \textbf{v1.1 --- Correccion atmosferica}\\{\small Issues \#9, \#12, \#15}
+        \item \textbf{v2.0 --- Interfaz web}\\{\small Issues \#20, \#21, \#25}
+      \end{itemize}
+    \end{block}
+
+    \column{0.5\textwidth}
+    \begin{block}{Projects --- Tablero Kanban}
+      Vista visual del estado de todas las tareas.
+
+      \vspace{0.2cm}
+      \begin{tabular}{|c|c|c|}
+        \hline
+        \textbf{Backlog} & \textbf{En curso} & \textbf{Listo} \\
+        \hline
+        \#15 & \#8  & \#1 \\
+        \#20 & \#12 & \#2 \\
+        \#21 &      & \#5 \\
+        \hline
+      \end{tabular}
+    \end{block}
+  \end{columns}
+
+  \vspace{0.3cm}
+  \begin{alertblock}{Flujo recomendado}
+    Issue $\rightarrow$ asignar a Milestone $\rightarrow$ mover en Project board $\rightarrow$ cerrar con PR
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Pull Requests --- Revision de codigo}
+  Un \textbf{Pull Request (PR)} es una solicitud para fusionar una rama en otra.
+
+  \vspace{0.3cm}
+
+  \begin{enumerate}
+    \item Desarrollador crea rama \texttt{feature/mi-funcionalidad}
+    \item Trabaja y hace commits
+    \item Abre un PR hacia \texttt{develop}
+    \item Otro miembro del equipo revisa el codigo
+    \item Se discuten cambios, se hacen ajustes
+    \item Si los tests pasan y hay aprobacion $\rightarrow$ se fusiona
+  \end{enumerate}
+
+  \vspace{0.3cm}
+
+  \begin{exampleblock}{Ventajas}
+    \begin{itemize}
+      \item Nadie sube codigo directamente a \texttt{main}
+      \item Revision obligatoria antes de integrar
+      \item Historial de decisiones tecnicas documentado
+      \item Los tests corren automaticamente antes de aprobar
+    \end{itemize}
+  \end{exampleblock}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════
+\section{GitHub Actions --- Automatizacion}
+
+\begin{frame}{Que son los Workflows?}
+  Un \textbf{workflow} es un proceso automatizado definido en un archivo YAML dentro del repositorio.
+
+  \vspace{0.3cm}
+
+  \begin{block}{Caracteristicas}
+    \begin{itemize}
+      \item Viven en \texttt{.github/workflows/nombre.yml}
+      \item Se activan por eventos: push, PR, horario, manual
+      \item Corren en maquinas virtuales de GitHub (runners)
+      \item Son codigo: se versionan junto al proyecto
+    \end{itemize}
+  \end{block}
+
+  \vspace{0.3cm}
+
+  \begin{columns}
+    \column{0.33\textwidth}
+    \begin{center}
+      \textbf{Disparador}\\[0.2cm]
+      {\small push, PR, schedule}
+    \end{center}
+
+    \column{0.33\textwidth}
+    \begin{center}
+      \textbf{Jobs}\\[0.2cm]
+      {\small test, build, deploy}
+    \end{center}
+
+    \column{0.33\textwidth}
+    \begin{center}
+      \textbf{Steps}\\[0.2cm]
+      {\small comandos individuales}
+    \end{center}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Anatomia de un workflow}
+  \begin{lstlisting}[style=yaml]
+name: CI/CD                      # nombre del workflow
+
+on:                              # cuando se ejecuta
+  push:
+    branches: [main, develop]    # en push a estas ramas
+  pull_request:
+    branches: [main]             # en PR hacia main
+
+jobs:                            # trabajos a ejecutar
+
+  test:                          # ID del job
+    name: Correr tests           # nombre visible en GitHub
+    runs-on: ubuntu-latest       # sistema operativo del runner
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Correr tests
+        run: pytest tests/ -v
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Pipeline completo: test -> build -> deploy}
+  \begin{lstlisting}[style=yaml]
+jobs:
+
+  test:                            # Job 1: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v
+
+  build:                           # Job 2: solo si test paso
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ghcr.io/mi-usuario/mi-app:latest
+
+  deploy:                          # Job 3: solo en main
+    needs: [test, build]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - run: curl -X POST "${{ secrets.DEPLOY_HOOK }}"
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Conceptos clave de los workflows}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{Disparadores (on:)}
+      \begin{itemize}
+        \item \texttt{push} --- al subir codigo
+        \item \texttt{pull\_request} --- al abrir un PR
+        \item \texttt{schedule} --- con cron (periodico)
+        \item \texttt{workflow\_dispatch} --- manual
+        \item \texttt{release} --- al publicar una version
+      \end{itemize}
+    \end{block}
+
+    \vspace{0.3cm}
+
+    \begin{block}{Secrets}
+      Variables sensibles guardadas en GitHub Settings. Se referencian como \texttt{\$\{\{ secrets.NOMBRE \}\}} y nunca aparecen en los logs.
+    \end{block}
+
+    \column{0.5\textwidth}
+    \begin{block}{Contextos disponibles}
+      \begin{itemize}
+        \item \texttt{github.ref} --- rama actual
+        \item \texttt{github.actor} --- quien hizo push
+        \item \texttt{github.repository} --- usuario/repo
+        \item \texttt{github.sha} --- hash del commit
+      \end{itemize}
+    \end{block}
+
+    \vspace{0.3cm}
+
+    \begin{block}{needs --- Dependencias}
+      \texttt{needs: test} hace que un job espere a que otro termine exitosamente antes de ejecutarse.
+    \end{block}
+  \end{columns}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════
+\section{Ejemplo practico --- Procesador SAR}
+
+\begin{frame}{Caso de uso: procesador SAR con CI/CD}
+  \begin{block}{Escenario}
+    Equipo de 3 personas desarrollando un procesador de imagenes Sentinel-1 en Python. Necesitan garantizar que cada cambio no rompa el procesamiento existente.
+  \end{block}
+
+  \vspace{0.3cm}
+
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{exampleblock}{Estructura del proyecto}
+      \begin{itemize}
+        \item \texttt{processor/} --- algoritmos SAR
+        \item \texttt{tests/} --- tests con imagenes de referencia
+        \item \texttt{data/} --- escenas de calibracion
+        \item \texttt{Dockerfile} --- entorno reproducible
+        \item \texttt{.github/workflows/}
+      \end{itemize}
+    \end{exampleblock}
+
+    \column{0.5\textwidth}
+    \begin{exampleblock}{Flujo de trabajo}
+      \begin{enumerate}
+        \item Issue \#42: nueva funcion de filtrado
+        \item Rama \texttt{feature/filtro-lee}
+        \item Desarrollo + tests unitarios
+        \item PR hacia \texttt{develop}
+        \item CI corre tests automaticamente
+        \item Revision del equipo
+        \item Merge $\rightarrow$ deploy a staging
+        \item Validacion $\rightarrow$ merge a \texttt{main}
+      \end{enumerate}
+    \end{exampleblock}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Workflow para procesamiento satelital}
+  \begin{lstlisting}[style=yaml]
+name: CI --- Procesador SAR
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [develop]
+
+jobs:
+
+  test:
+    name: Tests de procesamiento
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependencias
+        run: |
+          pip install numpy scipy rasterio pytest
+          pip install -r requirements.txt
+
+      - name: Tests unitarios
+        run: pytest tests/unit/ -v
+
+      - name: Tests con escenas de referencia
+        run: pytest tests/integration/ -v --timeout=120
+
+      - name: Calidad del codigo
+        run: |
+          flake8 processor/
+          black processor/ --check
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Beneficios concretos para el equipo}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{alertblock}{Sin CI/CD}
+      \begin{itemize}
+        \item El procesador SAR funciona solo en la PC del Dr. Garcia
+        \item Al pasar a produccion falla por version diferente de GDAL
+        \item Nadie sabe que cambio rompio el coregistro
+        \item El deploy tarda 2 dias y requiere intervencion manual
+      \end{itemize}
+    \end{alertblock}
+
+    \column{0.5\textwidth}
+    \begin{exampleblock}{Con CI/CD}
+      \begin{itemize}
+        \item Docker garantiza el mismo entorno siempre
+        \item Si un cambio rompe el procesamiento, se detecta en minutos
+        \item El historial de Git muestra exactamente que cambio
+        \item El deploy es automatico y tarda 5 minutos
+      \end{itemize}
+    \end{exampleblock}
+  \end{columns}
+
+  \vspace{0.5cm}
+
+  \begin{alertblock}{Principio fundamental}
+    \centering
+    El codigo que paso los tests en CI es exactamente el mismo que se despliega en produccion.
+  \end{alertblock}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════
+\section{Caso de estudio completo --- FastApi2}
+
+\begin{frame}{Arquitectura del sistema FastApi2}
+  Sistema web completo con CI/CD, compuesto por dos repositorios independientes.
+
+  \vspace{0.3cm}
+
+  \begin{center}
+    \begin{tikzpicture}[node distance=0.8cm]
+      \node[fill=azulclaro!30, rounded corners, minimum width=3cm, minimum height=0.8cm] (user)
+            {\small Usuario (navegador)};
+      \node[fill=verde!30, rounded corners, minimum width=3cm, minimum height=0.8cm,
+            right=1.5cm of user] (front)
+            {\small React (Frontend)};
+      \node[fill=azulmedio!40, rounded corners, minimum width=3cm, minimum height=0.8cm,
+            right=1.5cm of front] (back)
+            {\small FastAPI (Backend)};
+      \node[fill=naranja!30, rounded corners, minimum width=3cm, minimum height=0.8cm,
+            right=1.5cm of back] (db)
+            {\small PostgreSQL};
+
+      \draw[->, thick] (user) -- node[above]{\tiny HTTP} (front);
+      \draw[->, thick] (front) -- node[above]{\tiny JSON} (back);
+      \draw[->, thick] (back) -- node[above]{\tiny SQL} (db);
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.3cm}
+
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{Repositorio backend}
+      \texttt{sebaheredia/FastApi2}\\[0.2cm]
+      \begin{itemize}
+        \item \texttt{main.py} --- endpoints REST
+        \item \texttt{database.py} --- conexion a PostgreSQL
+        \item \texttt{models.py} --- tabla users (SQLAlchemy)
+        \item \texttt{schemas.py} --- validacion JSON (Pydantic)
+        \item \texttt{conftest.py} --- setup de tests
+        \item \texttt{test\_main.py} --- tests con pytest
+        \item \texttt{Dockerfile} --- imagen del backend
+      \end{itemize}
+    \end{block}
+
+    \column{0.5\textwidth}
+    \begin{block}{Repositorio frontend}
+      \texttt{sebaheredia/fastapi2-frontend}\\[0.2cm]
+      \begin{itemize}
+        \item \texttt{src/App.js} --- componente React principal
+        \item \texttt{src/api.js} --- llamadas al backend
+        \item \texttt{src/App.css} --- estilos
+        \item \texttt{nginx.conf} --- servidor web
+        \item \texttt{Dockerfile} --- multi-stage Node/nginx
+      \end{itemize}
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Docker --- Backend}
+  El backend usa un Dockerfile de una sola etapa. Crea las tablas en PostgreSQL antes de arrancar el servidor:
+
+  \vspace{0.3cm}
+
+  \begin{lstlisting}[style=yaml]
+FROM python:3.13-slim
+WORKDIR /app
+
+# Copiar deps primero para aprovechar cache de Docker
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+EXPOSE 8000
+
+# Dos comandos en secuencia con &&:
+# 1. Crear tablas en PostgreSQL (create_all)
+# 2. Solo si tuvo exito, arrancar uvicorn
+CMD ["sh", "-c",
+  "python -c 'from database import engine; import models;
+   models.Base.metadata.create_all(bind=engine)'
+   && uvicorn main:app --host 0.0.0.0 --port $PORT"]
+  \end{lstlisting}
+
+  \begin{alertblock}{Por que psycopg2-binary es critico}
+    Sin este driver en \texttt{requirements.txt}, la imagen se buildea sin soporte para PostgreSQL y la app cae silenciosamente a SQLite aunque \texttt{DATABASE\_URL} este correctamente configurada.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Docker --- Frontend (multi-stage)}
+  El frontend usa un build de dos etapas: Node compila React y nginx sirve los archivos estaticos:
+
+  \begin{lstlisting}[style=yaml]
+# Etapa 1: Node compila React
+FROM node:20-slim AS builder
+WORKDIR /app
+COPY package.json ./
+RUN npm install
+COPY . .
+
+# La URL del backend se embebe en el bundle en tiempo de build
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+RUN npm run build     # genera archivos estaticos en /build
+
+# Etapa 2: nginx sirve los archivos estaticos
+FROM nginx:alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+  \end{lstlisting}
+
+  \vspace{0.2cm}
+  \begin{exampleblock}{Ventaja del multi-stage}
+    La imagen final pesa $\sim$25 MB (nginx) en lugar de $\sim$300 MB (Node). Node solo se usa para compilar, no para servir.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Base de datos PostgreSQL en Render}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{alertblock}{SQLite dentro del Docker (incorrecto)}
+      \begin{itemize}
+        \item Datos guardados en un archivo dentro del contenedor
+        \item Al redesplegar, Render destruye el contenedor
+        \item El archivo desaparece con el contenedor
+        \item Todos los datos se pierden en cada deploy
+      \end{itemize}
+    \end{alertblock}
+
+    \column{0.5\textwidth}
+    \begin{exampleblock}{PostgreSQL externo (correcto)}
+      \begin{itemize}
+        \item Servidor independiente en Render
+        \item El contenedor puede destruirse y recrearse
+        \item La DB nunca se toca en los deploys
+        \item Los datos persisten siempre
+      \end{itemize}
+    \end{exampleblock}
+  \end{columns}
+
+  \vspace{0.4cm}
+
+  \begin{block}{Conexion via variable de entorno}
+    Render inyecta \texttt{DATABASE\_URL} dentro del contenedor al arrancarlo. El codigo la lee con \texttt{os.getenv()}:
+
+    \vspace{0.2cm}
+    \texttt{DATABASE\_URL = os.getenv("DATABASE\_URL", "sqlite:///./database.db")}
+
+    \vspace{0.1cm}
+    {\small Si la variable existe $\rightarrow$ usa PostgreSQL. Si no $\rightarrow$ usa SQLite (desarrollo local).}
+  \end{block}
+\end{frame}
+
+\begin{frame}{GHCR --- Registro de imagenes Docker}
+  GitHub Container Registry almacena las imagenes construidas por GitHub Actions. Render las descarga directamente.
+
+  \vspace{0.3cm}
+
+  \begin{center}
+    \begin{tikzpicture}[node distance=0.7cm]
+      \node[fill=azulmedio!30, rounded corners, minimum width=2.8cm, minimum height=0.7cm] (ga)
+            {\small GitHub Actions};
+      \node[fill=verde!30, rounded corners, minimum width=2.8cm, minimum height=0.7cm,
+            right=1cm of ga] (ghcr)
+            {\small GHCR};
+      \node[fill=naranja!30, rounded corners, minimum width=2.8cm, minimum height=0.7cm,
+            right=1cm of ghcr] (render)
+            {\small Render};
+
+      \draw[->, thick] (ga) -- node[above]{\tiny push} (ghcr);
+      \draw[->, thick] (ghcr) -- node[above]{\tiny pull} (render);
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.3cm}
+
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{Imagenes del backend}
+      \begin{itemize}
+        \item \texttt{ghcr.io/sebaheredia/fastapi2:main}
+        \item \texttt{ghcr.io/sebaheredia/fastapi2:develop}
+      \end{itemize}
+    \end{block}
+
+    \column{0.5\textwidth}
+    \begin{block}{Imagenes del frontend}
+      \begin{itemize}
+        \item \texttt{ghcr.io/sebaheredia/fastapi2-frontend:main}
+        \item \texttt{ghcr.io/sebaheredia/fastapi2-frontend:develop}
+      \end{itemize}
+    \end{block}
+  \end{columns}
+
+  \vspace{0.3cm}
+  \begin{exampleblock}{Ventaja clave}
+    La imagen que corre en produccion es exactamente la misma que fue testeada en CI. No hay diferencias de entorno.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Pipeline CI/CD del backend}
+  \begin{lstlisting}[style=yaml]
+name: CI/CD Backend
+on:
+  push:
+    branches: [main, develop]
+
+jobs:
+  test:                              # Job 1: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: pip install -r requirements.txt
+      - run: pytest test_main.py -v  # si falla, se detiene
+
+  docker:                            # Job 2: build imagen
+    needs: test
+    steps:
+      - uses: docker/login-action@v3
+        with: {registry: ghcr.io, ...}
+      - uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ghcr.io/sebaheredia/fastapi2:main
+
+  deploy:                            # Job 3: notificar a Render
+    needs: docker
+    if: github.ref == 'refs/heads/main'
+    run: |
+      curl -X PATCH "api.render.com/v1/services/.../image" ...
+      curl -X POST "api.render.com/v1/services/.../deploys" ...
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Pipeline CI/CD del frontend}
+  El frontend tiene una particularidad: \texttt{REACT\_APP\_API\_URL} debe determinarse antes del build.
+
+  \begin{lstlisting}[style=yaml]
+jobs:
+  docker:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with: {registry: ghcr.io, ...}
+
+      # Determinar URL del backend segun la rama
+      - name: Definir URL del backend
+        id: backend_url
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "url=${{ secrets.BACKEND_PRODUCTION_URL }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ secrets.BACKEND_STAGING_URL }}" >> $GITHUB_OUTPUT
+          fi
+
+      # La URL se embebe en el bundle de React durante el build
+      - uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            REACT_APP_API_URL=${{ steps.backend_url.outputs.url }}
+          push: true
+          tags: ghcr.io/sebaheredia/fastapi2-frontend:main
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Servicios desplegados en Render}
+  \begin{block}{4 servicios web + 1 base de datos}
+    \begin{center}
+      \begin{tabular}{llll}
+        \toprule
+        \textbf{Servicio} & \textbf{Tipo} & \textbf{Rama} & \textbf{URL} \\
+        \midrule
+        fastapi2-staging & Image/GHCR & develop & ...staging-docker.onrender.com \\
+        fastapi2-production & Image/GHCR & main & ...production-docker.onrender.com \\
+        fastapi2-frontend-staging & Image/GHCR & develop & ...frontend-staging.onrender.com \\
+        fastapi2-frontend-main & Image/GHCR & main & ...frontend-main.onrender.com \\
+        fastapi2-db & PostgreSQL & --- & red interna de Render \\
+        \bottomrule
+      \end{tabular}
+    \end{center}
+  \end{block}
+
+  \vspace{0.3cm}
+
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{Secrets en GitHub (backend)}
+      \begin{itemize}
+        \item \texttt{RENDER\_API\_KEY}
+        \item \texttt{RENDER\_STAGING\_SERVICE\_ID}
+        \item \texttt{RENDER\_PRODUCTION\_SERVICE\_ID}
+        \item \texttt{GHCR\_TOKEN}
+      \end{itemize}
+    \end{block}
+
+    \column{0.5\textwidth}
+    \begin{block}{Secrets en GitHub (frontend)}
+      \begin{itemize}
+        \item \texttt{RENDER\_API\_KEY}
+        \item \texttt{RENDER\_FRONTEND\_STAGING\_SERVICE\_ID}
+        \item \texttt{RENDER\_FRONTEND\_PRODUCTION\_SERVICE\_ID}
+        \item \texttt{BACKEND\_STAGING\_URL}
+        \item \texttt{BACKEND\_PRODUCTION\_URL}
+      \end{itemize}
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Flujo completo de un cambio en produccion}
+  \begin{center}
+    \begin{tikzpicture}[node distance=0.4cm, scale=0.85, every node/.style={scale=0.85}]
+      \node[fill=azuloscuro, text=white, rounded corners, minimum width=3cm] (dev)
+            {Desarrollador};
+      \node[fill=azulmedio!50, rounded corners, minimum width=3cm, below=of dev] (push)
+            {git push origin develop};
+      \node[fill=verde!40, rounded corners, minimum width=3cm, below=of push] (ci)
+            {GitHub Actions: tests};
+      \node[fill=verde!40, rounded corners, minimum width=3cm, below=of ci] (build)
+            {Build imagen Docker};
+      \node[fill=naranja!40, rounded corners, minimum width=3cm, below=of build] (ghcr)
+            {Push a GHCR};
+      \node[fill=azulclaro!40, rounded corners, minimum width=3cm, below=of ghcr] (render)
+            {Render descarga imagen};
+      \node[fill=verde!60, rounded corners, minimum width=3cm, below=of render] (live)
+            {Servicio staging activo};
+
+      \draw[->, thick] (dev) -- (push);
+      \draw[->, thick] (push) -- (ci);
+      \draw[->, thick] (ci) -- node[right]{\tiny OK} (build);
+      \draw[->, thick] (build) -- (ghcr);
+      \draw[->, thick] (ghcr) -- (render);
+      \draw[->, thick] (render) -- (live);
+
+      \node[fill=rojo!40, rounded corners, right=1.5cm of ci, minimum width=2cm] (fail)
+            {Falla: stop};
+      \draw[->, thick, rojo] (ci) -- node[above]{\tiny Error} (fail);
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{CORS --- Comunicacion entre dominios}
+  \begin{block}{El problema}
+    Frontend (\texttt{fastapi2-frontend.onrender.com}) y backend (\texttt{fastapi2-backend.onrender.com}) estan en dominios distintos. El navegador bloquea los requests entre dominios por seguridad.
+  \end{block}
+
+  \vspace{0.3cm}
+
+  \begin{exampleblock}{La solucion: middleware CORS en FastAPI}
+    \ttfamily\small
+    from fastapi.middleware.cors import CORSMiddleware\\[0.2cm]
+    app = FastAPI()\\[0.2cm]
+    app.add\_middleware(\\
+    \quad CORSMiddleware,\\
+    \quad allow\_origins=\textbf{[}"*"\textbf{]},\\
+    \quad allow\_methods=\textbf{[}"*"\textbf{]},\\
+    \quad allow\_headers=\textbf{[}"*"\textbf{]},\\
+    )
+    \normalfont
+  \end{exampleblock}
+
+  \begin{alertblock}{Importante}
+    \texttt{add\_middleware} es una llamada de funcion, NO un decorador. No lleva \texttt{@} al principio.
+  \end{alertblock}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════
+\section{Resumen}
+
+\begin{frame}{Resumen}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{Lo que vimos hoy}
+      \begin{enumerate}
+        \item \textbf{Git}: control de versiones
+          \begin{itemize}
+            \item add, commit, push, pull, fetch
+            \item merge, checkout, stash
+            \item tags y versionado semantico
+          \end{itemize}
+        \item \textbf{GitHub}: plataforma colaborativa
+          \begin{itemize}
+            \item Issues, Milestones, Projects
+            \item Ramas: main, develop, feature
+            \item Pull Requests
+          \end{itemize}
+        \item \textbf{GitHub Actions}
+          \begin{itemize}
+            \item Workflows, jobs, steps
+            \item Disparadores y condiciones
+            \item Secrets y contextos
+          \end{itemize}
+      \end{enumerate}
+    \end{block}
+
+    \column{0.5\textwidth}
+    \begin{exampleblock}{Proximos pasos}
+      \begin{enumerate}
+        \item Crear repositorio para el procesador SAR
+        \item Configurar ramas main/develop
+        \item Escribir primeros tests automatizados
+        \item Crear el primer workflow de CI
+        \item Agregar Docker para reproducibilidad
+        \item Configurar deploy automatico
+      \end{enumerate}
+    \end{exampleblock}
+
+    \vspace{0.3cm}
+    \begin{alertblock}{Herramientas necesarias}
+      Git, VSCode, Docker Desktop, cuenta en GitHub
+    \end{alertblock}
+  \end{columns}
+\end{frame}
+
+% ─── Cierre ───────────────────────────────────────────────────
+{
+\setbeamercolor{background canvas}{bg=azuloscuro}
+\begin{frame}[plain]
+  \begin{center}
+    \vspace{2cm}
+    {\color{white}\Huge\textbf{Gracias!}}\\[0.5cm]
+    \rule{6cm}{0.4pt}\\[0.5cm]
+    {\color{gris}\large ADAIP}\\[0.2cm]
+    {\color{gris}\small Area de Desarrollos Avanzados de Imagenes y Percepcion}\\[1cm]
+    \rule{6cm}{0.4pt}\\[0.5cm]
+    {\color{azulclaro}\small Repositorios del ejemplo practico:}\\[0.2cm]
+    {\color{white}\small github.com/sebaheredia/FastApi2}\\
+    {\color{white}\small github.com/sebaheredia/fastapi2-frontend}
+  \end{center}
+\end{frame}
+}
+
+\end{document}

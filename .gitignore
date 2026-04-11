@@ -1,0 +1,13 @@
+# Archivos auxiliares generados por LaTeX
+Presentacion/*.aux
+Presentacion/*.log
+Presentacion/*.nav
+Presentacion/*.out
+Presentacion/*.snm
+Presentacion/*.synctex.gz
+Presentacion/*.toc
+Presentacion/*.vrb
+
+# Mantener solo:
+# Presentacion/*.tex  <- codigo fuente
+# Presentacion/*.pdf  <- resultado compilado
