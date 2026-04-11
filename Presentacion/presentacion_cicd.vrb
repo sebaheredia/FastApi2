@@ -1,29 +1,23 @@
-\frametitle{Pipeline CI/CD del frontend}
-El frontend tiene una particularidad: \texttt{REACT\_APP\_API\_URL} debe determinarse antes del build.
+\frametitle{CORS --- Comunicacion entre dominios}
+\begin{block}{El problema}
+    Frontend (\texttt{fastapi2-frontend.onrender.com}) y backend (\texttt{fastapi2-backend.onrender.com}) estan en dominios distintos. El navegador bloquea los requests entre dominios por seguridad.
+  \end{block}
 
-  \begin{lstlisting}[style=yaml]
-jobs:
-  docker:
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with: {registry: ghcr.io, ...}
+  \vspace{0.3cm}
 
-      # Determinar URL del backend segun la rama
-      - name: Definir URL del backend
-        id: backend_url
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "url=${{ secrets.BACKEND_PRODUCTION_URL }}" >> $GITHUB_OUTPUT
-          else
-            echo "url=${{ secrets.BACKEND_STAGING_URL }}" >> $GITHUB_OUTPUT
-          fi
+  \begin{exampleblock}{La solucion: middleware CORS en FastAPI}
+    \ttfamily\small
+    from fastapi.middleware.cors import CORSMiddleware\\[0.2cm]
+    app = FastAPI()\\[0.2cm]
+    app.add\_middleware(\\
+    \quad CORSMiddleware,\\
+    \quad allow\_origins=\textbf{[}"*"\textbf{]},\\
+    \quad allow\_methods=\textbf{[}"*"\textbf{]},\\
+    \quad allow\_headers=\textbf{[}"*"\textbf{]},\\
+    )
+    \normalfont
+  \end{exampleblock}
 
-      # La URL se embebe en el bundle de React durante el build
-      - uses: docker/build-push-action@v5
-        with:
-          build-args: |
-            REACT_APP_API_URL=${{ steps.backend_url.outputs.url }}
-          push: true
-          tags: ghcr.io/sebaheredia/fastapi2-frontend:main
-  \end{lstlisting}
+  \begin{alertblock}{Importante}
+    \texttt{add\_middleware} es una llamada de funcion, NO un decorador. No lleva \texttt{@} al principio.
+  \end{alertblock}
