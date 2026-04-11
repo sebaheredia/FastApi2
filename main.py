@@ -5,6 +5,8 @@ from typing import List
 import models
 import schemas
 from database import engine, get_db
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # NO hay create_all acá
 app = FastAPI()
@@ -63,3 +65,18 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
 def db_info():
     from database import DATABASE_URL
     return {"database_url": DATABASE_URL}
+
+@app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # en producción poner la URL del frontend
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/config")
+def config():
+    import os
+    return {
+        "allowed_origins": "*",
+        "environment": os.environ.get("ENVIRONMENT", "unknown")
+    }
