@@ -106,6 +106,225 @@
 \end{frame}
 
 % ══════════════════════════════════════════════════════════════
+\section{Evolucion del desarrollo de software}
+
+\begin{frame}{Los anos 60-70: el codigo como obra artesanal}
+  \begin{columns}
+    \column{0.55\textwidth}
+    \begin{block}{Como se trabajaba}
+      \begin{itemize}
+        \item El software lo escribia \textbf{una sola persona}
+        \item No habia metodologia formal
+        \item El codigo era considerado documentacion interna
+        \item Los programas se entregaban en tarjetas perforadas
+        \item No existia el concepto de ``version''
+      \end{itemize}
+    \end{block}
+
+    \vspace{0.3cm}
+
+    \begin{alertblock}{El problema}
+      Si el programador se iba, el conocimiento se iba con el. No habia forma de saber que habia cambiado ni por que.
+    \end{alertblock}
+
+    \column{0.45\textwidth}
+    \begin{center}
+      \begin{tikzpicture}
+        \node[fill=azuloscuro, text=white, rounded corners,
+              minimum width=3.5cm, minimum height=1cm,
+              text width=3cm, align=center] (p)
+              {\small Programador\\unico};
+        \node[fill=azulmedio!40, rounded corners,
+              minimum width=3.5cm, minimum height=1cm,
+              text width=3cm, align=center,
+              below=0.6cm of p] (c)
+              {\small Codigo en\\tarjetas perforadas};
+        \node[fill=verde!30, rounded corners,
+              minimum width=3.5cm, minimum height=1cm,
+              text width=3cm, align=center,
+              below=0.6cm of c] (m)
+              {\small Maquina\\mainframe};
+        \draw[->, thick] (p) -- (c);
+        \draw[->, thick] (c) -- (m);
+      \end{tikzpicture}
+    \end{center}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Los anos 80: equipos y el caos de la colaboracion}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{Que cambio}
+      \begin{itemize}
+        \item Los proyectos crecieron en complejidad
+        \item Aparecieron los \textbf{equipos de desarrollo}
+        \item Cada uno trabajaba en su propia copia del codigo
+        \item La integracion se hacia al final del proyecto
+        \item Aparecio el termino \textbf{``integration hell''}
+      \end{itemize}
+    \end{block}
+
+    \column{0.5\textwidth}
+    \begin{alertblock}{Integration Hell}
+      Cuando varios desarrolladores trabajaban meses en paralelo y al intentar unir el codigo, nada funcionaba. Los cambios de uno rompian el trabajo del otro. Resolver conflictos llevaba semanas.
+    \end{alertblock}
+  \end{columns}
+
+  \vspace{0.4cm}
+
+  \begin{exampleblock}{Primera solucion: RCS y CVS (1982-1990)}
+    Aparecieron los primeros sistemas de control de versiones. Un servidor central guardaba el historial. Solo una persona podia editar un archivo a la vez (\textbf{lock/unlock}).
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Los anos 90: metodologias en cascada}
+  \begin{center}
+    \begin{tikzpicture}[node distance=0.3cm]
+      \node[fill=azulmedio, text=white, rounded corners,
+            minimum width=10cm, minimum height=0.7cm,
+            text width=9cm, align=center] (req)
+            {\small \textbf{1. Requisitos} (meses)};
+      \node[fill=azulmedio!80, text=white, rounded corners,
+            minimum width=8.5cm, minimum height=0.7cm,
+            text width=8cm, align=center, below=of req] (dis)
+            {\small \textbf{2. Diseno} (meses)};
+      \node[fill=azulmedio!60, text=white, rounded corners,
+            minimum width=7cm, minimum height=0.7cm,
+            text width=6.5cm, align=center, below=of dis] (imp)
+            {\small \textbf{3. Implementacion} (meses)};
+      \node[fill=azulmedio!40, text=azuloscuro, rounded corners,
+            minimum width=5.5cm, minimum height=0.7cm,
+            text width=5cm, align=center, below=of imp] (test)
+            {\small \textbf{4. Testing} (semanas)};
+      \node[fill=azulmedio!20, text=azuloscuro, rounded corners,
+            minimum width=4cm, minimum height=0.7cm,
+            text width=3.5cm, align=center, below=of test] (dep)
+            {\small \textbf{5. Deploy} (dias)};
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.2cm}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{alertblock}{El problema}
+      El cliente recibia el producto \textbf{anos despues} de haberlo pedido. Para entonces, los requisitos habian cambiado y el software ya era obsoleto.
+    \end{alertblock}
+
+    \column{0.5\textwidth}
+    \begin{block}{Avance: Subversion (SVN) en 2000}
+      Permitia que multiples personas editaran el mismo archivo. El servidor central seguia siendo el unico punto de verdad.
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Los 2000: el Manifiesto Agil y el cambio de paradigma}
+  \begin{block}{Manifiesto Agil --- 2001}
+    17 desarrolladores se reunieron en Utah y firmaron un documento que cambiaria la industria:
+    \begin{itemize}
+      \item \textbf{Individuos e interacciones} sobre procesos y herramientas
+      \item \textbf{Software funcionando} sobre documentacion extensiva
+      \item \textbf{Colaboracion con el cliente} sobre negociacion contractual
+      \item \textbf{Respuesta al cambio} sobre seguir un plan
+    \end{itemize}
+  \end{block}
+
+  \vspace{0.3cm}
+
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{exampleblock}{Consecuencias practicas}
+      \begin{itemize}
+        \item Ciclos cortos de entrega (\textbf{sprints} de 2 semanas)
+        \item Feedback continuo del cliente
+        \item Equipos pequenos y autonomos
+        \item Testing como parte del desarrollo
+      \end{itemize}
+    \end{exampleblock}
+
+    \column{0.5\textwidth}
+    \begin{exampleblock}{Git nace en 2005}
+      Linus Torvalds crea Git para manejar el desarrollo del kernel de Linux. A diferencia de SVN, cada desarrollador tiene una copia completa del historial. No hay servidor central obligatorio.
+    \end{exampleblock}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Los 2010: DevOps y la fusion de desarrollo y operaciones}
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{block}{El problema anterior}
+      \begin{itemize}
+        \item \textbf{Developers}: quieren cambiar cosas rapido
+        \item \textbf{Operations}: quieren estabilidad, no cambios
+        \item Resultado: conflicto permanente y deploys dolorosos
+        \item \textit{``Funciona en mi maquina''} era el lema
+      \end{itemize}
+    \end{block}
+
+    \vspace{0.3cm}
+
+    \begin{exampleblock}{La solucion: DevOps}
+      Unificar desarrollo y operaciones en un mismo equipo con las mismas herramientas y responsabilidades.
+    \end{exampleblock}
+
+    \column{0.5\textwidth}
+    \begin{center}
+      \begin{tikzpicture}
+        \node[fill=azulmedio!30, rounded corners,
+              minimum width=2.8cm, minimum height=1cm,
+              text width=2.5cm, align=center] (dev)
+              {\small \textbf{Dev}\\Desarrollo};
+        \node[fill=verde!30, rounded corners,
+              minimum width=2.8cm, minimum height=1cm,
+              text width=2.5cm, align=center,
+              right=0.5cm of dev] (ops)
+              {\small \textbf{Ops}\\Operaciones};
+        \node[fill=naranja!40, rounded corners,
+              minimum width=3cm, minimum height=1cm,
+              text width=2.8cm, align=center,
+              below=0.8cm of dev, xshift=1.65cm] (devops)
+              {\small \textbf{DevOps}\\CI/CD + Docker\\+ Automatizacion};
+        \draw[->, thick] (dev) -- (devops);
+        \draw[->, thick] (ops) -- (devops);
+      \end{tikzpicture}
+    \end{center}
+
+    \begin{block}{Herramientas clave}
+      Docker (2013), GitHub Actions (2019), Kubernetes (2014)
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{La linea del tiempo completa}
+  \begin{center}
+    \begin{tikzpicture}[scale=0.85]
+      % Linea de tiempo
+      \draw[thick, azulmedio] (0,0) -- (12,0);
+
+      % Puntos y etiquetas
+      \foreach \x/\y/\label/\sub in {
+        0/0.3/1960/Programador unico,
+        2/0.3/1982/RCS - primeras versiones,
+        4/0.3/1994/SVN - servidor central,
+        6/0.3/2001/Manifiesto Agil,
+        8/0.3/2005/Git distribuido,
+        10/0.3/2013/Docker,
+        12/0.3/2019/GitHub Actions
+      }{
+        \node[fill=azulmedio, circle, minimum size=6pt, inner sep=0pt] at (\x,0) {};
+        \node[above, text width=1.6cm, align=center, font=\tiny\bfseries] at (\x,\y) {\label};
+        \node[below, text width=1.6cm, align=center, font=\tiny] at (\x,-0.3) {\sub};
+      }
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.4cm}
+
+  \begin{alertblock}{La conclusion}
+    Cada etapa surgio como respuesta a los problemas de la anterior. CI/CD no es una moda --- es la solucion natural a decadas de problemas de colaboracion, integracion y despliegue.
+  \end{alertblock}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════
 \section{Que es la Integracion Continua?}
 
 \begin{frame}{El problema que resuelve}

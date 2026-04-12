@@ -1,8 +1,0 @@
-\babel@toc {spanish}{}\relax 
-\beamer@sectionintoc {1}{Que es la Integracion Continua?}{3}{0}{1}
-\beamer@sectionintoc {2}{Git --- Control de versiones}{5}{0}{2}
-\beamer@sectionintoc {3}{GitHub --- Trabajo en equipo}{10}{0}{3}
-\beamer@sectionintoc {4}{GitHub Actions --- Automatizacion}{15}{0}{4}
-\beamer@sectionintoc {5}{Ejemplo practico --- Procesador SAR}{19}{0}{5}
-\beamer@sectionintoc {6}{Caso de estudio completo --- FastApi2}{22}{0}{6}
-\beamer@sectionintoc {7}{Resumen}{32}{0}{7}
