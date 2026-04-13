@@ -420,130 +420,210 @@
 \begin{frame}[fragile]{Comandos fundamentales --- Parte 1}
   \begin{columns}
     \column{0.5\textwidth}
-    \begin{exampleblock}{\texttt{git add}}
-      Prepara archivos para el proximo commit
-      \begin{lstlisting}[style=bash]
+      \begin{exampleblock}{\texttt{git init}}
+        Crea un repositorio en la carpeta actual
+        \begin{lstlisting}[style=bash]
+git init              # repo nuevo
+git init nombre-repo  # con nombre
+        \end{lstlisting}
+      \end{exampleblock}
+
+      \vspace{0.3cm}
+
+      \begin{exampleblock}{\texttt{git add}}
+        Prepara archivos para el proximo commit
+        \begin{lstlisting}[style=bash]
 git add archivo.py   # un archivo
 git add .            # todos los cambios
 git add src/         # una carpeta
-      \end{lstlisting}
-    \end{exampleblock}
+        \end{lstlisting}
+      \end{exampleblock}
 
-    \vspace{0.3cm}
-
-    \begin{exampleblock}{\texttt{git commit}}
-      Guarda los cambios con un mensaje
-      \begin{lstlisting}[style=bash]
+    \column{0.5\textwidth}
+      \begin{exampleblock}{\texttt{git commit}}
+        Guarda los cambios con un mensaje
+        \begin{lstlisting}[style=bash]
 git commit -m "descripcion"
 git commit --amend   # modificar el ultimo
-      \end{lstlisting}
-    \end{exampleblock}
+        \end{lstlisting}
+      \end{exampleblock}
 
-    \column{0.5\textwidth}
-    \begin{block}{El flujo basico}
-      \begin{center}
-        \begin{tikzpicture}[node distance=0.5cm]
-          \node[fill=gris!30, rounded corners,
-                minimum width=3cm, minimum height=0.7cm] (wd)
-                {Working Directory};
-          \node[fill=naranja!30, rounded corners,
-                minimum width=3cm, minimum height=0.7cm,
-                below=of wd] (sa) {Staging Area};
-          \node[fill=verde!30, rounded corners,
-                minimum width=3cm, minimum height=0.7cm,
-                below=of sa] (repo) {Repositorio local};
-          \draw[->, thick] (wd) -- node[right]{\tiny git add} (sa);
-          \draw[->, thick] (sa) -- node[right]{\tiny git commit} (repo);
-        \end{tikzpicture}
-      \end{center}
-    \end{block}
-  \end{columns}
-\end{frame}
+      \vspace{0.3cm}
 
-\begin{frame}[fragile]{Comandos fundamentales --- Parte 2}
-  \begin{columns}
-    \column{0.5\textwidth}
-    \begin{exampleblock}{\texttt{git push}}
-      Sube commits al servidor remoto
-      \begin{lstlisting}[style=bash]
+      \begin{exampleblock}{\texttt{git push}}
+        Sube commits al servidor remoto
+        \begin{lstlisting}[style=bash]
 git push origin main
 git push origin develop
 git push --force origin main
-      \end{lstlisting}
-    \end{exampleblock}
+        \end{lstlisting}
+      \end{exampleblock}
+  \end{columns}
+\end{frame}
 
-    \vspace{0.3cm}
+% -------------------------------------------------------
+\begin{frame}{Flujo basico --- de lo local al remoto}
+  \begin{center}
+    \begin{tikzpicture}[node distance=0.6cm]
+      \node[fill=blue!20, rounded corners,
+            minimum width=3.5cm, minimum height=0.8cm] (init)
+            {Carpeta vacia};
+      \node[fill=gris!30, rounded corners,
+            minimum width=3.5cm, minimum height=0.8cm,
+            below=of init] (wd) {Working Directory};
+      \node[fill=naranja!30, rounded corners,
+            minimum width=3.5cm, minimum height=0.8cm,
+            below=of wd] (sa) {Staging Area};
+      \node[fill=verde!30, rounded corners,
+            minimum width=3.5cm, minimum height=0.8cm,
+            below=of sa] (repo) {Repositorio local};
+      \node[fill=azuloscuro!80, text=white, rounded corners,
+            minimum width=3.5cm, minimum height=0.8cm,
+            below=of repo] (remote) {Remote (GitHub)};
 
-    \begin{exampleblock}{\texttt{git pull}}
-      Descarga y fusiona cambios remotos
-      \begin{lstlisting}[style=bash]
+      \draw[->, thick] (init)   -- node[right]{\small \texttt{git init}}   (wd);
+      \draw[->, thick] (wd)     -- node[right]{\small \texttt{git add}}    (sa);
+      \draw[->, thick] (sa)     -- node[right]{\small \texttt{git commit}} (repo);
+      \draw[->, thick] (repo)   -- node[right]{\small \texttt{git push}}   (remote);
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% -------------------------------------------------------
+\begin{frame}[fragile]{Comandos fundamentales --- Parte 2}
+  \begin{columns}
+    \column{0.5\textwidth}
+      \begin{exampleblock}{\texttt{git pull}}
+        Descarga y fusiona cambios remotos
+        \begin{lstlisting}[style=bash]
 git pull origin main
 git pull --rebase origin main
-      \end{lstlisting}
-    \end{exampleblock}
+        \end{lstlisting}
+      \end{exampleblock}
 
-    \column{0.5\textwidth}
-    \begin{exampleblock}{\texttt{git fetch}}
-      Descarga cambios SIN fusionarlos
-      \begin{lstlisting}[style=bash]
+      \vspace{0.3cm}
+
+      \begin{exampleblock}{\texttt{git fetch}}
+        Descarga cambios SIN fusionarlos
+        \begin{lstlisting}[style=bash]
 git fetch origin
 git fetch --all
-      \end{lstlisting}
-    \end{exampleblock}
+        \end{lstlisting}
+      \end{exampleblock}
 
-    \vspace{0.3cm}
-
-    \begin{block}{fetch vs pull}
-      \begin{itemize}
-        \item \texttt{pull} = \texttt{fetch} + \texttt{merge}
-        \item \texttt{fetch} permite revisar antes de fusionar
-      \end{itemize}
-    \end{block}
+    \column{0.5\textwidth}
+      \begin{block}{fetch vs pull}
+        \begin{itemize}
+          \item \texttt{pull} = \texttt{fetch} + \texttt{merge}
+          \item \texttt{fetch} permite revisar antes de fusionar
+          \item \texttt{fetch} es mas seguro en ramas compartidas
+        \end{itemize}
+      \end{block}
   \end{columns}
+\end{frame}
+
+% -------------------------------------------------------
+\begin{frame}{Flujo inverso --- del remoto a lo local}
+  \begin{center}
+    \begin{tikzpicture}[node distance=0.6cm]
+      \node[fill=azuloscuro!80, text=white, rounded corners,
+            minimum width=3.5cm, minimum height=0.8cm] (remote)
+            {Remote (GitHub)};
+      \node[fill=verde!30, rounded corners,
+            minimum width=3.5cm, minimum height=0.8cm,
+            below=of remote] (repo) {Repositorio local};
+      \node[fill=gris!30, rounded corners,
+            minimum width=3.5cm, minimum height=0.8cm,
+            below=of repo] (wd) {Working Directory};
+
+      % fetch: remote -> repo local
+      \draw[->, thick, naranja] (remote.west)
+            to[out=180, in=180]
+            node[left]{\small \texttt{git fetch}}
+            (repo.west);
+
+      % pull: remote -> working directory (directo)
+      \draw[->, thick, verde!70!black] (remote.east)
+            to[out=0, in=0]
+            node[right]{\small \texttt{git pull}}
+            (wd.east);
+
+      % merge: repo -> wd
+      \draw[->, thick, dashed] (repo)
+            -- node[right]{\small \texttt{git merge}}
+            (wd);
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.3cm}
+  \begin{block}{Diferencia clave}
+    \texttt{fetch} trae los cambios al repositorio local sin tocar tu codigo.
+    \texttt{pull} los trae y los fusiona directamente en tu rama activa.
+  \end{block}
 \end{frame}
 
 \begin{frame}[fragile]{Comandos de ramas}
   \begin{columns}
     \column{0.5\textwidth}
-    \begin{exampleblock}{\texttt{git checkout / git switch}}
-      Cambia entre ramas
-      \begin{lstlisting}[style=bash]
+      \begin{exampleblock}{\texttt{git branch}}
+        Crea y lista ramas
+        \begin{lstlisting}[style=bash]
+git branch            # listar ramas
+git branch nueva-rama # crear rama
+git branch -d rama    # eliminar rama
+        \end{lstlisting}
+      \end{exampleblock}
+
+      \vspace{0.2cm}
+
+      \begin{exampleblock}{\texttt{git checkout / git switch}}
+        Cambia entre ramas
+        \begin{lstlisting}[style=bash]
 git checkout main
 git checkout -b feature  # crear y cambiar
 git switch develop
 git switch -c nueva-rama
-      \end{lstlisting}
-    \end{exampleblock}
+        \end{lstlisting}
+      \end{exampleblock}
 
-    \vspace{0.2cm}
+      \vspace{0.2cm}
 
-    \begin{exampleblock}{\texttt{git merge}}
-      Fusiona una rama en otra
-      \begin{lstlisting}[style=bash]
+      \begin{exampleblock}{\texttt{git merge}}
+        Fusiona una rama en otra
+        \begin{lstlisting}[style=bash]
 git checkout main
 git merge develop
-      \end{lstlisting}
-    \end{exampleblock}
+        \end{lstlisting}
+      \end{exampleblock}
 
     \column{0.5\textwidth}
-    \begin{exampleblock}{\texttt{git status / log}}
-      \begin{lstlisting}[style=bash]
+      \begin{exampleblock}{\texttt{git status / log}}
+        \begin{lstlisting}[style=bash]
 git status
 git log --oneline
 git log --oneline --graph
 git diff
-      \end{lstlisting}
-    \end{exampleblock}
+        \end{lstlisting}
+      \end{exampleblock}
 
-    \vspace{0.2cm}
+      \vspace{0.2cm}
 
-    \begin{exampleblock}{\texttt{git stash}}
-      Guarda cambios temporalmente
-      \begin{lstlisting}[style=bash]
+      \begin{exampleblock}{\texttt{git stash}}
+        Guarda cambios temporalmente
+        \begin{lstlisting}[style=bash]
 git stash
 git stash pop
-      \end{lstlisting}
-    \end{exampleblock}
+git stash list
+        \end{lstlisting}
+      \end{exampleblock}
+
+      \vspace{0.2cm}
+
+      \begin{block}{Buena practica}
+        Nunca trabajar directamente en \texttt{main}.
+        Siempre crear una rama \texttt{feature/xxx}
+        y fusionar via Pull Request.
+      \end{block}
   \end{columns}
 \end{frame}
 
@@ -654,7 +734,7 @@ git checkout v1.0.0
 \end{frame}
 
 \begin{frame}{Issues --- Gestion de tareas}
-  Los \textbf{Issues} son el sistema de seguimiento de tareas de GitHub.
+  Los \textbf{Issues} son el sistema de GitHub para gestionar tareas, reportar errores, proponer mejoras y discutir cambios dentro de un repositorio.
 
   \vspace{0.3cm}
 
@@ -764,7 +844,7 @@ git checkout v1.0.0
   \begin{block}{Caracteristicas}
     \begin{itemize}
       \item Viven en \texttt{.github/workflows/nombre.yml}
-      \item Se activan por eventos: push, PR, horario, manual
+      \item Se activan por eventos: push, pull request, horario, manual
       \item Corren en maquinas virtuales de GitHub (runners)
       \item Son codigo: se versionan junto al proyecto
     \end{itemize}
@@ -776,7 +856,7 @@ git checkout v1.0.0
     \column{0.33\textwidth}
     \begin{center}
       \textbf{Disparador}\\[0.2cm]
-      {\small push, PR, schedule}
+      {\small push, pull request, schedule}
     \end{center}
 
     \column{0.33\textwidth}
@@ -1006,13 +1086,13 @@ jobs:
       \node[fill=azulclaro!30, rounded corners, minimum width=3cm, minimum height=0.8cm] (user)
             {\small Usuario (navegador)};
       \node[fill=verde!30, rounded corners, minimum width=3cm, minimum height=0.8cm,
-            right=1.5cm of user] (front)
+            right=1.cm of user] (front)
             {\small React (Frontend)};
       \node[fill=azulmedio!40, rounded corners, minimum width=3cm, minimum height=0.8cm,
-            right=1.5cm of front] (back)
+            right=1.cm of front] (back)
             {\small FastAPI (Backend)};
       \node[fill=naranja!30, rounded corners, minimum width=3cm, minimum height=0.8cm,
-            right=1.5cm of back] (db)
+            right=1.cm of back] (db)
             {\small PostgreSQL};
 
       \draw[->, thick] (user) -- node[above]{\tiny HTTP} (front);

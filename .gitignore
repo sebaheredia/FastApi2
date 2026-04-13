@@ -7,7 +7,8 @@ Presentacion/*.snm
 Presentacion/*.synctex.gz
 Presentacion/*.toc
 Presentacion/*.vrb
-
+Presentacion/*.fls
+Presentacion/*.fdb_latexmk
 # Mantener solo:
 # Presentacion/*.tex  <- codigo fuente
 # Presentacion/*.pdf  <- resultado compilado
