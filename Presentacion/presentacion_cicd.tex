@@ -379,6 +379,67 @@
   \end{center}
 \end{frame}
 
+% -------------------------------------------------------
+\begin{frame}{Docker --- El entorno reproducible}
+  \begin{block}{El problema que resuelve}
+    \textit{``Funciona en mi maquina''} --- el codigo corre perfecto
+    en el entorno del desarrollador pero falla en produccion por
+    diferencias en versiones de Python, librerias, o configuracion
+    del sistema operativo.
+  \end{block}
+
+  \vspace{0.3cm}
+
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{exampleblock}{Que es Docker}
+      \begin{itemize}
+        \item Empaqueta la aplicacion junto con
+              \textbf{todo su entorno}: Python, librerias,
+              configuracion
+        \item El paquete resultante se llama
+              \textbf{imagen}
+        \item Al ejecutar una imagen se crea un
+              \textbf{contenedor}
+        \item Corre igual en cualquier maquina
+      \end{itemize}
+    \end{exampleblock}
+
+    \column{0.5\textwidth}
+    \begin{center}
+      \begin{tikzpicture}[node distance=0.5cm]
+        \node[fill=azulmedio!30, rounded corners,
+              minimum width=3.5cm, minimum height=0.7cm,
+              text width=3cm, align=center] (app)
+              {\small Codigo Python};
+        \node[fill=verde!30, rounded corners,
+              minimum width=3.5cm, minimum height=0.7cm,
+              text width=3cm, align=center,
+              below=of app] (dep)
+              {\small Dependencias\\(numpy, rasterio...)};
+        \node[fill=naranja!30, rounded corners,
+              minimum width=3.5cm, minimum height=0.7cm,
+              text width=3cm, align=center,
+              below=of dep] (so)
+              {\small Sistema operativo\\(Ubuntu slim)};
+        \node[fill=azuloscuro, text=white, rounded corners,
+              minimum width=3.5cm, minimum height=0.7cm,
+              text width=3cm, align=center,
+              below=of so] (img)
+              {\small Imagen Docker};
+        \draw[->, thick] (app) -- (dep);
+        \draw[->, thick] (dep) -- (so);
+        \draw[->, thick] (so) -- (img);
+      \end{tikzpicture}
+    \end{center}
+  \end{columns}
+
+  \vspace{0.3cm}
+  \begin{alertblock}{En el pipeline CI/CD}
+    GitHub Actions construye la imagen Docker, la sube a GHCR,
+    y Render la descarga y corre. El mismo paquete en todos los entornos.
+  \end{alertblock}
+\end{frame}
 % ══════════════════════════════════════════════════════════════
 \section{Git --- Control de versiones}
 
@@ -696,7 +757,7 @@ git checkout v1.0.0
   \vspace{0.5cm}
 
   \begin{alertblock}{Analogia}
-    Git es el motor del auto. GitHub es la autopista donde circula.
+    Git es el auto. GitHub es la ruta por donde circula.
   \end{alertblock}
 \end{frame}
 
@@ -902,7 +963,7 @@ jobs:                            # trabajos a ejecutar
   \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Pipeline completo: test -> build -> deploy}
+\begin{frame}[fragile]{Pipeline completo: test $\to$ build $\to$ deploy}
   \begin{lstlisting}[style=yaml]
 jobs:
 
