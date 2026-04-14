@@ -38,10 +38,15 @@ from database import engine, get_db
 # get_db  → funcion que abre y cierra sesiones de DB por request
  
 
+# ✅ DESPUÉS
 def add_categoria(user):
-    if user.edad < 18:
+    edad = user.edad
+
+    if edad is None:
+        categoria = "sin datos"
+    elif edad < 18:
         categoria = "menor"
-    elif user.edad < 65:
+    elif edad < 65:
         categoria = "adulto"
     else:
         categoria = "mayor"
