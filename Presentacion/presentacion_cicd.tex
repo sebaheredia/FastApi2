@@ -937,60 +937,58 @@ git checkout v1.0.0
 \end{frame}
 
 \begin{frame}[fragile]{Anatomia de un workflow}
-  \begin{lstlisting}[style=yaml]
-name: CI/CD                      # nombre del workflow
+\begin{lstlisting}[style=yaml, basicstyle=\ttfamily\scriptsize\color{white}]
+  name: CI/CD                      # nombre del workflow
+  on:                              # cuando se ejecuta
+    push:
+      branches: [main, develop]    # en push a estas ramas
+    pull_request:
+      branches: [main]             # en PR hacia main
 
-on:                              # cuando se ejecuta
-  push:
-    branches: [main, develop]    # en push a estas ramas
-  pull_request:
-    branches: [main]             # en PR hacia main
+  jobs:                            # trabajos a ejecutar
 
-jobs:                            # trabajos a ejecutar
+    test:                          # ID del job
+      name: Correr tests           # nombre visible en GitHub
+      runs-on: ubuntu-latest       # sistema operativo del runner
+      steps:
+        - name: Descargar codigo
+          uses: actions/checkout@v4
 
-  test:                          # ID del job
-    name: Correr tests           # nombre visible en GitHub
-    runs-on: ubuntu-latest       # sistema operativo del runner
-    steps:
-      - name: Descargar codigo
-        uses: actions/checkout@v4
+        - name: Instalar Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: "3.13"
 
-      - name: Instalar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Correr tests
-        run: pytest tests/ -v
+        - name: Correr tests
+          run: pytest tests/ -v
   \end{lstlisting}
 \end{frame}
 
 \begin{frame}[fragile]{Pipeline completo: test $\to$ build $\to$ deploy}
-  \begin{lstlisting}[style=yaml]
-jobs:
+\begin{lstlisting}[style=yaml, basicstyle=\ttfamily\scriptsize\color{white}]
+  jobs:
+    test:                            # Job 1: tests
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - run: pip install -r requirements.txt
+        - run: pytest tests/ -v
 
-  test:                            # Job 1: tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: pip install -r requirements.txt
-      - run: pytest tests/ -v
+    build:                           # Job 2: solo si test paso
+      needs: test
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: docker/build-push-action@v5
+          with:
+            push: true
+            tags: ghcr.io/mi-usuario/mi-app:latest
 
-  build:                           # Job 2: solo si test paso
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/build-push-action@v5
-        with:
-          push: true
-          tags: ghcr.io/mi-usuario/mi-app:latest
-
-  deploy:                          # Job 3: solo en main
-    needs: [test, build]
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - run: curl -X POST "${{ secrets.DEPLOY_HOOK }}"
+    deploy:                          # Job 3: solo en main
+      needs: [test, build]
+      if: github.ref == 'refs/heads/main'
+      steps:
+        - run: curl -X POST "${{ secrets.DEPLOY_HOOK }}"
   \end{lstlisting}
 \end{frame}
 
@@ -1198,55 +1196,55 @@ jobs:
 \begin{frame}[fragile]{Docker --- Backend}
   El backend usa un Dockerfile de una sola etapa. Crea las tablas en PostgreSQL antes de arrancar el servidor:
 
-  \vspace{0.3cm}
+  \vspace{0.1cm}
 
-  \begin{lstlisting}[style=yaml]
-FROM python:3.13-slim
-WORKDIR /app
+\begin{lstlisting}[style=yaml, basicstyle=\ttfamily\footnotesize\color{white}]
+  FROM python:3.13-slim
+  WORKDIR /app
 
-# Copiar deps primero para aprovechar cache de Docker
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+  # Copiar deps primero para aprovechar cache de Docker
+  COPY requirements.txt .
+  RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
-EXPOSE 8000
+  COPY . .
+  EXPOSE 8000
 
-# Dos comandos en secuencia con &&:
-# 1. Crear tablas en PostgreSQL (create_all)
-# 2. Solo si tuvo exito, arrancar uvicorn
-CMD ["sh", "-c",
-  "python -c 'from database import engine; import models;
-   models.Base.metadata.create_all(bind=engine)'
-   && uvicorn main:app --host 0.0.0.0 --port $PORT"]
+  # Dos comandos en secuencia con &&:
+  # 1. Crear tablas en PostgreSQL (create_all)
+  # 2. Solo si tuvo exito, arrancar uvicorn
+  CMD ["sh", "-c",
+    "python -c 'from database import engine; import models;
+    models.Base.metadata.create_all(bind=engine)'
+    && uvicorn main:app --host 0.0.0.0 --port $PORT"]
   \end{lstlisting}
 
-  \begin{alertblock}{Por que psycopg2-binary es critico}
-    Sin este driver en \texttt{requirements.txt}, la imagen se buildea sin soporte para PostgreSQL y la app cae silenciosamente a SQLite aunque \texttt{DATABASE\_URL} este correctamente configurada.
-  \end{alertblock}
+  % \begin{alertblock}{Por que psycopg2-binary es critico}
+  %   Sin este driver en \texttt{requirements.txt}, la imagen se buildea sin soporte para PostgreSQL y la app cae silenciosamente a SQLite aunque \texttt{DATABASE\_URL} este correctamente configurada.
+  % \end{alertblock}
 \end{frame}
 
 \begin{frame}[fragile]{Docker --- Frontend (multi-stage)}
   El frontend usa un build de dos etapas: Node compila React y nginx sirve los archivos estaticos:
 
-  \begin{lstlisting}[style=yaml]
-# Etapa 1: Node compila React
-FROM node:20-slim AS builder
-WORKDIR /app
-COPY package.json ./
-RUN npm install
-COPY . .
+\begin{lstlisting}[style=yaml, basicstyle=\ttfamily\footnotesize\color{white}]
+  # Etapa 1: Node compila React
+  FROM node:20-slim AS builder
+  WORKDIR /app
+  COPY package.json ./
+  RUN npm install
+  COPY . .
 
-# La URL del backend se embebe en el bundle en tiempo de build
-ARG REACT_APP_API_URL
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
-RUN npm run build     # genera archivos estaticos en /build
+  # La URL del backend se embebe en el bundle en tiempo de build
+  ARG REACT_APP_API_URL
+  ENV REACT_APP_API_URL=$REACT_APP_API_URL
+  RUN npm run build     # genera archivos estaticos en /build
 
-# Etapa 2: nginx sirve los archivos estaticos
-FROM nginx:alpine
-COPY --from=builder /app/build /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+  # Etapa 2: nginx sirve los archivos estaticos
+  FROM nginx:alpine
+  COPY --from=builder /app/build /usr/share/nginx/html
+  COPY nginx.conf /etc/nginx/conf.d/default.conf
+  EXPOSE 80
+  CMD ["nginx", "-g", "daemon off;"]
   \end{lstlisting}
 
   \vspace{0.2cm}
@@ -1480,30 +1478,30 @@ jobs:
   \end{center}
 \end{frame}
 
-\begin{frame}[fragile]{CORS --- Comunicacion entre dominios}
-  \begin{block}{El problema}
-    Frontend (\texttt{fastapi2-frontend.onrender.com}) y backend (\texttt{fastapi2-backend.onrender.com}) estan en dominios distintos. El navegador bloquea los requests entre dominios por seguridad.
-  \end{block}
+% \begin{frame}[fragile]{CORS --- Comunicacion entre dominios}
+%   \begin{block}{El problema}
+%     Frontend (\texttt{fastapi2-frontend.onrender.com}) y backend (\texttt{fastapi2-backend.onrender.com}) estan en dominios distintos. El navegador bloquea los requests entre dominios por seguridad.
+%   \end{block}
 
-  \vspace{0.3cm}
+%   \vspace{0.3cm}
 
-  \begin{exampleblock}{La solucion: middleware CORS en FastAPI}
-    \ttfamily\small
-    from fastapi.middleware.cors import CORSMiddleware\\[0.2cm]
-    app = FastAPI()\\[0.2cm]
-    app.add\_middleware(\\
-    \quad CORSMiddleware,\\
-    \quad allow\_origins=\textbf{[}"*"\textbf{]},\\
-    \quad allow\_methods=\textbf{[}"*"\textbf{]},\\
-    \quad allow\_headers=\textbf{[}"*"\textbf{]},\\
-    )
-    \normalfont
-  \end{exampleblock}
+%   \begin{exampleblock}{La solucion: middleware CORS en FastAPI}
+%     \ttfamily\small
+%     from fastapi.middleware.cors import CORSMiddleware\\[0.2cm]
+%     app = FastAPI()\\[0.2cm]
+%     app.add\_middleware(\\
+%     \quad CORSMiddleware,\\
+%     \quad allow\_origins=\textbf{[}"*"\textbf{]},\\
+%     \quad allow\_methods=\textbf{[}"*"\textbf{]},\\
+%     \quad allow\_headers=\textbf{[}"*"\textbf{]},\\
+%     )
+%     \normalfont
+%   \end{exampleblock}
 
-  \begin{alertblock}{Importante}
-    \texttt{add\_middleware} es una llamada de funcion, NO un decorador. No lleva \texttt{@} al principio.
-  \end{alertblock}
-\end{frame}
+%   \begin{alertblock}{Importante}
+%     \texttt{add\_middleware} es una llamada de funcion, NO un decorador. No lleva \texttt{@} al principio.
+%   \end{alertblock}
+% \end{frame}
 
 % ══════════════════════════════════════════════════════════════
 \section{Resumen}
@@ -1537,7 +1535,7 @@ jobs:
     \column{0.5\textwidth}
     \begin{exampleblock}{Proximos pasos}
       \begin{enumerate}
-        \item Crear repositorio para el procesador SAR
+        \item Crear repositorio
         \item Configurar ramas main/develop
         \item Escribir primeros tests automatizados
         \item Crear el primer workflow de CI
@@ -1546,7 +1544,7 @@ jobs:
       \end{enumerate}
     \end{exampleblock}
 
-    \vspace{0.3cm}
+    \vspace{0.1cm}
     \begin{alertblock}{Herramientas necesarias}
       Git, VSCode, Docker Desktop, cuenta en GitHub
     \end{alertblock}
@@ -1562,7 +1560,7 @@ jobs:
     {\color{white}\Huge\textbf{Gracias!}}\\[0.5cm]
     \rule{6cm}{0.4pt}\\[0.5cm]
     {\color{gris}\large ADAIP}\\[0.2cm]
-    {\color{gris}\small Area de Desarrollos Avanzados de Imagenes y Percepcion}\\[1cm]
+    {\color{gris}\small Area de Desarrollos Avanzados}\\[1cm]
     \rule{6cm}{0.4pt}\\[0.5cm]
     {\color{azulclaro}\small Repositorios del ejemplo practico:}\\[0.2cm]
     {\color{white}\small github.com/sebaheredia/FastApi2}\\
