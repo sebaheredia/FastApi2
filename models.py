@@ -49,3 +49,5 @@ class User(Base):
         # func.now()     → la fecha y hora actual del servidor de DB
         # No hay que pasarla al crear un User
     )
+
+    edad = Column(Integer)

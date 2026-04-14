@@ -37,6 +37,19 @@ from database import engine, get_db
 # engine  → la conexion a la base de datos
 # get_db  → funcion que abre y cierra sesiones de DB por request
  
+
+def add_categoria(user):
+    if user.edad < 18:
+        categoria = "menor"
+    elif user.edad < 65:
+        categoria = "adulto"
+    else:
+        categoria = "mayor"
+
+    return {
+        **user.__dict__,
+        "categoria": categoria
+    }
  
 # ─── Creacion de la app ───────────────────────────────────────
  
@@ -133,17 +146,23 @@ def create_user(
         raise HTTPException(status_code=400, detail="El email ya está registrado")
  
     # Crear el objeto User (todavia NO esta en la DB, solo en memoria)
-    db_user = models.User(nombre=user.nombre, email=user.email)
+    db_user = models.User(
+    nombre=user.nombre,
+    email=user.email,
+    edad=user.edad
+    )
  
     db.add(db_user)     # marcar para insertar (todavia no ejecuta el INSERT)
     db.commit()         # ejecutar el INSERT en la DB y confirmar la transaccion
     db.refresh(db_user) # releer el objeto desde la DB para obtener el id
                         # y created_at generados automaticamente por PostgreSQL
                         # sin refresh, db_user.id seria None
- 
+    
     # FastAPI convierte db_user a JSON usando el schema UserResponse
     # solo incluye los campos definidos en UserResponse
-    return db_user
+    
+
+    return add_categoria(db_user)
  
  
 @app.get("/users", response_model=List[schemas.UserResponse])
@@ -151,8 +170,7 @@ def list_users(db: Session = Depends(get_db)):
     # List[schemas.UserResponse] → devuelve una LISTA de usuarios
     # db.query(models.User).all() → SELECT * FROM users (sin filtros)
     # puede devolver lista vacia [] si no hay usuarios
-    return db.query(models.User).all()
- 
+    return [add_categoria(u) for u in db.query(models.User).all()] 
  
 @app.get("/users/{user_id}", response_model=schemas.UserResponse)
 def get_user(
@@ -167,7 +185,7 @@ def get_user(
         # 404 Not Found = el recurso que buscan no existe
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
  
-    return user
+    return add_categoria(user)
  
  
 @app.delete("/users/{user_id}", response_model=schemas.UserResponse)
@@ -182,4 +200,4 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
  
     # devuelve el usuario que se acaba de borrar
     # asi el cliente sabe exactamente que se elimino
-    return user
+    return add_categoria(user)

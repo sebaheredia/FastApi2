@@ -23,6 +23,7 @@ class UserCreate(BaseModel):
     """
     nombre: str   # obligatorio, debe ser texto
     email: str    # obligatorio, debe ser texto
+    edad: int # 👈 NUEVO
  
  
 class UserResponse(BaseModel):
@@ -38,6 +39,8 @@ class UserResponse(BaseModel):
     id: int
     nombre: str
     email: str
+    edad: int # 👈 NUEVO
+    categoria: str # 👈 NUEVO
     created_at: Optional[datetime] = None
     # Optional → puede ser None. Se usa porque en algunos contextos
     # (como los tests en memoria) el valor puede no estar disponible.
