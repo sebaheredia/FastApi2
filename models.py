@@ -1,34 +1,51 @@
+"""
+╔══════════════════════════════════════════════════════════════╗
+║                         models.py                            ║
+║   Define la estructura de las tablas en la base de datos.    ║
+║   Cada clase = una tabla. Cada Column = una columna.         ║
+╚══════════════════════════════════════════════════════════════╝
+"""
+ 
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
 from database import Base
-
+ 
+ 
 class User(Base):
-    # Esta clase representa la tabla "users" en SQLite
-    # Cada instancia de User = una fila en la tabla
-    # Cada atributo Column = una columna
-
+    """
+    Representa la tabla 'users' en la base de datos.
+    Cada instancia de User = una fila en la tabla.
+    """
+ 
     __tablename__ = "users"
-    # Este es el nombre real de la tabla en la DB
-    # SQLAlchemy crea: CREATE TABLE users (...)
-
-    id = Column(Integer, primary_key=True, index=True)
-    # Integer    → número entero
-    # primary_key=True → es la clave primaria, identifica
-    #                    unívocamente cada fila
-    # index=True → crea un índice para búsquedas rápidas
-    # SQLite asigna el valor automáticamente (1, 2, 3...)
-
-    nombre = Column(String, nullable=False)
-    # String     → texto
-    # nullable=False → no puede estar vacío (obligatorio)
-
-    email = Column(String, unique=True, index=True, nullable=False)
-    # unique=True → no puede haber dos filas con el mismo email
-    #               SQLite devuelve error si intentás insertar
-    #               un email duplicado
-
-    created_at = Column(DateTime, server_default=func.now())
-    # DateTime       → fecha y hora
-    # server_default=func.now() → SQLite pone la fecha y hora
-    #                             actual automáticamente al insertar
-    #                             No tenés que pasarla vos
+    # Nombre real de la tabla en SQL.
+    # SQLAlchemy genera: CREATE TABLE users (...)
+ 
+    id = Column(
+        Integer,
+        primary_key=True,  # clave primaria: identifica univocamente cada fila
+        index=True         # crea un indice para que las busquedas por id sean rapidas
+    )
+    # SQLAlchemy + PostgreSQL asignan el valor automaticamente (1, 2, 3...)
+    # No hay que pasarlo al crear un User
+ 
+    nombre = Column(
+        String,
+        nullable=False     # no puede estar vacio: es obligatorio
+    )
+ 
+    email = Column(
+        String,
+        unique=True,       # no puede haber dos filas con el mismo email
+                           # la DB devuelve error si se intenta insertar un duplicado
+        index=True,        # indice para busquedas rapidas por email
+        nullable=False
+    )
+ 
+    created_at = Column(
+        DateTime,
+        server_default=func.now()
+        # server_default → la DB asigna el valor automaticamente al insertar
+        # func.now()     → la fecha y hora actual del servidor de DB
+        # No hay que pasarla al crear un User
+    )

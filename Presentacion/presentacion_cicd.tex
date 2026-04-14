@@ -89,13 +89,15 @@
 \begin{frame}[plain]
   \vspace{1cm}
   \begin{center}
-    {\color{azulclaro}\large\textbf{PROCESADORES SATELITALES}}\\[0.3cm]
+    {\color{azulclaro}\large\textbf{GENERACIÓN Y VALIDACIÓN DE PRODUCTOS PARA APLICACIONES}}\\[0.3cm]
     \rule{8cm}{0.4pt}\\[0.5cm]
-    {\color{white}\Huge\textbf{Integracion y Despliegue}}\\[0.2cm]
+    {\color{white}\Huge\textbf{Integración y Despliegue}}\\[0.2cm]
     {\color{white}\Huge\textbf{Continuo}}\\[0.5cm]
     {\color{azulclaro}\large Git $\cdot$ GitHub $\cdot$ GitHub Actions}\\[1cm]
     \rule{8cm}{0.4pt}\\[0.5cm]
-    {\color{gris}\small ADAIP --- \today}
+    {\color{gris!40}\small Sebastián Heredia --- sheredia@conae.gob.ar  
+    
+    \today}
   \end{center}
 \end{frame}
 }
@@ -407,7 +409,7 @@
 
     \column{0.5\textwidth}
     \begin{center}
-      \begin{tikzpicture}[node distance=0.5cm]
+      \begin{tikzpicture}[node distance=0.3cm]
         \node[fill=azulmedio!30, rounded corners,
               minimum width=3.5cm, minimum height=0.7cm,
               text width=3cm, align=center] (app)
@@ -1030,109 +1032,109 @@ jobs:
 \end{frame}
 
 % ══════════════════════════════════════════════════════════════
-\section{Ejemplo practico --- Procesador SAR}
+% \section{Ejemplo practico --- Procesador SAR}
 
-\begin{frame}{Caso de uso: procesador SAR con CI/CD}
-  \begin{block}{Escenario}
-    Equipo de 3 personas desarrollando un procesador de imagenes Sentinel-1 en Python. Necesitan garantizar que cada cambio no rompa el procesamiento existente.
-  \end{block}
+% \begin{frame}{Caso de uso: procesador SAR con CI/CD}
+%   \begin{block}{Escenario}
+%     Equipo de 3 personas desarrollando un procesador de imagenes Sentinel-1 en Python. Necesitan garantizar que cada cambio no rompa el procesamiento existente.
+%   \end{block}
 
-  \vspace{0.3cm}
+%   \vspace{0.3cm}
 
-  \begin{columns}
-    \column{0.5\textwidth}
-    \begin{exampleblock}{Estructura del proyecto}
-      \begin{itemize}
-        \item \texttt{processor/} --- algoritmos SAR
-        \item \texttt{tests/} --- tests con imagenes de referencia
-        \item \texttt{data/} --- escenas de calibracion
-        \item \texttt{Dockerfile} --- entorno reproducible
-        \item \texttt{.github/workflows/}
-      \end{itemize}
-    \end{exampleblock}
+%   \begin{columns}
+%     \column{0.5\textwidth}
+%     \begin{exampleblock}{Estructura del proyecto}
+%       \begin{itemize}
+%         \item \texttt{processor/} --- algoritmos SAR
+%         \item \texttt{tests/} --- tests con imagenes de referencia
+%         \item \texttt{data/} --- escenas de calibracion
+%         \item \texttt{Dockerfile} --- entorno reproducible
+%         \item \texttt{.github/workflows/}
+%       \end{itemize}
+%     \end{exampleblock}
 
-    \column{0.5\textwidth}
-    \begin{exampleblock}{Flujo de trabajo}
-      \begin{enumerate}
-        \item Issue \#42: nueva funcion de filtrado
-        \item Rama \texttt{feature/filtro-lee}
-        \item Desarrollo + tests unitarios
-        \item PR hacia \texttt{develop}
-        \item CI corre tests automaticamente
-        \item Revision del equipo
-        \item Merge $\rightarrow$ deploy a staging
-        \item Validacion $\rightarrow$ merge a \texttt{main}
-      \end{enumerate}
-    \end{exampleblock}
-  \end{columns}
-\end{frame}
+%     \column{0.5\textwidth}
+%     \begin{exampleblock}{Flujo de trabajo}
+%       \begin{enumerate}
+%         \item Issue \#42: nueva funcion de filtrado
+%         \item Rama \texttt{feature/filtro-lee}
+%         \item Desarrollo + tests unitarios
+%         \item PR hacia \texttt{develop}
+%         \item CI corre tests automaticamente
+%         \item Revision del equipo
+%         \item Merge $\rightarrow$ deploy a staging
+%         \item Validacion $\rightarrow$ merge a \texttt{main}
+%       \end{enumerate}
+%     \end{exampleblock}
+%   \end{columns}
+% \end{frame}
 
-\begin{frame}[fragile]{Workflow para procesamiento satelital}
-  \begin{lstlisting}[style=yaml]
-name: CI --- Procesador SAR
+% \begin{frame}[fragile]{Workflow para procesamiento satelital}
+%   \begin{lstlisting}[style=yaml]
+% name: CI --- Procesador SAR
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [develop]
+% on:
+%   push:
+%     branches: [main, develop]
+%   pull_request:
+%     branches: [develop]
 
-jobs:
+% jobs:
 
-  test:
-    name: Tests de procesamiento
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+%   test:
+%     name: Tests de procesamiento
+%     runs-on: ubuntu-latest
+%     steps:
+%       - uses: actions/checkout@v4
 
-      - name: Instalar dependencias
-        run: |
-          pip install numpy scipy rasterio pytest
-          pip install -r requirements.txt
+%       - name: Instalar dependencias
+%         run: |
+%           pip install numpy scipy rasterio pytest
+%           pip install -r requirements.txt
 
-      - name: Tests unitarios
-        run: pytest tests/unit/ -v
+%       - name: Tests unitarios
+%         run: pytest tests/unit/ -v
 
-      - name: Tests con escenas de referencia
-        run: pytest tests/integration/ -v --timeout=120
+%       - name: Tests con escenas de referencia
+%         run: pytest tests/integration/ -v --timeout=120
 
-      - name: Calidad del codigo
-        run: |
-          flake8 processor/
-          black processor/ --check
-  \end{lstlisting}
-\end{frame}
+%       - name: Calidad del codigo
+%         run: |
+%           flake8 processor/
+%           black processor/ --check
+%   \end{lstlisting}
+% \end{frame}
 
-\begin{frame}{Beneficios concretos para el equipo}
-  \begin{columns}
-    \column{0.5\textwidth}
-    \begin{alertblock}{Sin CI/CD}
-      \begin{itemize}
-        \item El procesador SAR funciona solo en la PC del Dr. Garcia
-        \item Al pasar a produccion falla por version diferente de GDAL
-        \item Nadie sabe que cambio rompio el coregistro
-        \item El deploy tarda 2 dias y requiere intervencion manual
-      \end{itemize}
-    \end{alertblock}
+% \begin{frame}{Beneficios concretos para el equipo}
+%   \begin{columns}
+%     \column{0.5\textwidth}
+%     \begin{alertblock}{Sin CI/CD}
+%       \begin{itemize}
+%         \item El procesador SAR funciona solo en la PC del Dr. Garcia
+%         \item Al pasar a produccion falla por version diferente de GDAL
+%         \item Nadie sabe que cambio rompio el coregistro
+%         \item El deploy tarda 2 dias y requiere intervencion manual
+%       \end{itemize}
+%     \end{alertblock}
 
-    \column{0.5\textwidth}
-    \begin{exampleblock}{Con CI/CD}
-      \begin{itemize}
-        \item Docker garantiza el mismo entorno siempre
-        \item Si un cambio rompe el procesamiento, se detecta en minutos
-        \item El historial de Git muestra exactamente que cambio
-        \item El deploy es automatico y tarda 5 minutos
-      \end{itemize}
-    \end{exampleblock}
-  \end{columns}
+%     \column{0.5\textwidth}
+%     \begin{exampleblock}{Con CI/CD}
+%       \begin{itemize}
+%         \item Docker garantiza el mismo entorno siempre
+%         \item Si un cambio rompe el procesamiento, se detecta en minutos
+%         \item El historial de Git muestra exactamente que cambio
+%         \item El deploy es automatico y tarda 5 minutos
+%       \end{itemize}
+%     \end{exampleblock}
+%   \end{columns}
 
-  \vspace{0.5cm}
+%   \vspace{0.5cm}
 
-  \begin{alertblock}{Principio fundamental}
-    \centering
-    El codigo que paso los tests en CI es exactamente el mismo que se despliega en produccion.
-  \end{alertblock}
-\end{frame}
+%   \begin{alertblock}{Principio fundamental}
+%     \centering
+%     El codigo que paso los tests en CI es exactamente el mismo que se despliega en produccion.
+%   \end{alertblock}
+% \end{frame}
 
 % ══════════════════════════════════════════════════════════════
 \section{Caso de estudio completo --- FastApi2}

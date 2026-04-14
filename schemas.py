@@ -1,33 +1,50 @@
+"""
+╔══════════════════════════════════════════════════════════════╗
+║                        schemas.py                            ║
+║   Define la forma del JSON que entra y sale de la API.       ║
+║   Pydantic valida automaticamente los datos.                 ║
+║   NO tocan la base de datos — solo validan y serializan.     ║
+╚══════════════════════════════════════════════════════════════╝
+"""
+ 
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
-
+ 
+ 
 class UserCreate(BaseModel):
-    # Este schema define qué datos debe mandar el cliente
-    # cuando quiere crear un usuario.
-    # Pydantic valida automáticamente que:
-    # - los campos obligatorios estén presentes
-    # - los tipos sean correctos
-    # Si algo falla → FastAPI devuelve 422 automáticamente
-
+    """
+    Schema de ENTRADA: lo que debe mandar el cliente para crear un usuario.
+ 
+    Si el cliente manda un JSON sin 'nombre' o sin 'email',
+    o si manda un numero donde se espera texto,
+    FastAPI devuelve 422 Unprocessable Entity automaticamente
+    sin llegar a ejecutar el endpoint.
+    """
     nombre: str   # obligatorio, debe ser texto
     email: str    # obligatorio, debe ser texto
-
+ 
+ 
 class UserResponse(BaseModel):
-    # Este schema define qué datos devuelve la API
-    # al mostrar un usuario.
-    # FastAPI filtra automáticamente — si el modelo tiene
-    # más campos (como un password en el futuro),
-    # solo muestra los que están acá
-
+    """
+    Schema de SALIDA: lo que devuelve la API al mostrar un usuario.
+ 
+    Actua como filtro de seguridad: si en el futuro se agrega
+    un campo 'password' al modelo User, NO apareceria en la respuesta
+    porque no esta definido aca.
+ 
+    Solo se muestran los campos que el cliente necesita ver.
+    """
     id: int
     nombre: str
     email: str
     created_at: Optional[datetime] = None
-    # Optional → puede ser None (no siempre viene de la DB)
-
+    # Optional → puede ser None. Se usa porque en algunos contextos
+    # (como los tests en memoria) el valor puede no estar disponible.
+ 
     class Config:
         from_attributes = True
-        # Le dice a Pydantic que puede leer los datos
-        # de un objeto SQLAlchemy (no solo de un dict)
-        # Sin esto, la conversión User → JSON fallaría
+        # Sin esto, Pydantic no puede leer un objeto SQLAlchemy.
+        # Por defecto Pydantic espera un diccionario.
+        # from_attributes=True le permite leer atributos de cualquier objeto.
+ 
